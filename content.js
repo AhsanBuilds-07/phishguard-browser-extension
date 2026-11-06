@@ -63,7 +63,8 @@
     hostDiv.id = 'sentinel-warning-overlay-host';
     const shadow = hostDiv.attachShadow({ mode: 'open' });
 
-    const riskPercent = Math.round((report.riskScore || 0.95) * 100);
+    const riskPercent = Math.round((report.riskScore ?? 0.95) * 100);
+    const modelVersion = report.modelVersion || 'trained local model';
     const domainText = report.hostname || window.location.hostname;
     const flags = report.flags || [];
 
@@ -220,6 +221,24 @@
           flex-shrink: 0;
         }
 
+        .model-attribution {
+          display: flex;
+          justify-content: space-between;
+          gap: 12px;
+          padding: 9px 12px;
+          border: 1px solid rgba(56, 189, 248, 0.22);
+          border-radius: 9px;
+          background: rgba(14, 116, 144, 0.09);
+          color: #a5c9d4;
+          font-size: 10px;
+        }
+
+        .model-attribution strong {
+          color: #7dd3fc;
+          font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+          font-weight: 600;
+        }
+
         .flags-header {
           font-size: 11px;
           font-weight: 700;
@@ -343,8 +362,8 @@
             </svg>
           </div>
           <div class="title-group">
-            <h1>Phishing & Scam Link Intercepted</h1>
-            <p>SentinelAI detected high-confidence deceptive threat indicators</p>
+            <h1>High-risk URL detected</h1>
+            <p>The trained SentinelAI model estimated a ${riskPercent}% phishing probability</p>
           </div>
         </div>
 
@@ -355,6 +374,11 @@
               <span class="target-host-val">${escapeHtml(domainText)}</span>
             </div>
             <div class="risk-badge">${riskPercent}% Threat Risk</div>
+          </div>
+
+          <div class="model-attribution">
+            <span>Random Forest · <strong>${escapeHtml(modelVersion)}</strong></span>
+            <span>Local inference</span>
           </div>
 
           <div class="flags-header">Detected Risk Signals</div>
@@ -427,6 +451,7 @@
     const bannerHost = document.createElement('div');
     bannerHost.id = 'sentinel-top-banner-host';
     const shadow = bannerHost.attachShadow({ mode: 'open' });
+    const riskPercent = Math.round((report.riskScore ?? 0.95) * 100);
 
     shadow.innerHTML = `
       <style>
@@ -487,7 +512,7 @@
       </style>
 
       <div class="banner-left">
-        <span>⚠ SentinelAI Warning: High-risk phishing indicators detected. Do NOT enter credentials.</span>
+        <span>⚠ SentinelAI high-risk warning · ${riskPercent}% model probability. Do NOT enter credentials.</span>
       </div>
 
       <div style="display: flex; align-items: center;">

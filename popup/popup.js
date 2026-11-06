@@ -17,6 +17,12 @@ document.addEventListener('DOMContentLoaded', async () => {
   const statusBadgeEl = document.getElementById('status-badge');
   const statusTextEl = document.getElementById('status-text');
   const verdictSummaryEl = document.getElementById('verdict-summary');
+  const modelNameEl = document.getElementById('model-name');
+  const modelVersionEl = document.getElementById('model-version');
+  const benignProbabilityEl = document.getElementById('benign-probability');
+  const phishingProbabilityEl = document.getElementById('phishing-probability');
+  const benignProbabilityBar = document.getElementById('benign-probability-bar');
+  const phishingProbabilityBar = document.getElementById('phishing-probability-bar');
 
   const flagsBadgeEl = document.getElementById('flags-badge');
   const flagsListEl = document.getElementById('flags-list');
@@ -72,6 +78,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     // 2. Score & Status Badge
     const riskPercent = Math.round((report.riskScore || 0) * 100);
     if (threatScoreEl) threatScoreEl.textContent = `${riskPercent}%`;
+    const phishingProbability = Number(report.probabilities?.phishing ?? report.riskScore ?? 0);
+    const benignProbability = Number(report.probabilities?.benign ?? (1 - phishingProbability));
+    if (modelNameEl) modelNameEl.textContent = report.modelType || 'Trained Random Forest';
+    if (modelVersionEl) modelVersionEl.textContent = report.modelVersion || 'No inference';
+    if (benignProbabilityEl) benignProbabilityEl.textContent = `${(benignProbability * 100).toFixed(2)}%`;
+    if (phishingProbabilityEl) phishingProbabilityEl.textContent = `${(phishingProbability * 100).toFixed(2)}%`;
+    if (benignProbabilityBar) benignProbabilityBar.style.width = `${Math.max(0, Math.min(100, benignProbability * 100))}%`;
+    if (phishingProbabilityBar) phishingProbabilityBar.style.width = `${Math.max(0, Math.min(100, phishingProbability * 100))}%`;
 
     // Whitelisted handling
     if (report.whitelisted) {
@@ -274,6 +288,38 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (res?.success) {
           currentAssessment.whitelisted = willWhitelist;
           renderReport(currentAssessment);
+        }
+      });
+    });
+  }
+
+  const dashboardSync = document.getElementById('dashboard-sync');
+  const openConsoleButton = document.getElementById('btn-open-console');
+
+  if (dashboardSync) {
+    chrome.storage.local.get(['sentinel_local_dashboard_sync'], (values) => {
+      if (chrome.runtime.lastError) {
+        console.warn('[SentinelAI Popup] Could not load dashboard sync preference:', chrome.runtime.lastError.message);
+        return;
+      }
+      dashboardSync.checked = values.sentinel_local_dashboard_sync === true;
+    });
+
+    dashboardSync.addEventListener('change', () => {
+      chrome.storage.local.set({ sentinel_local_dashboard_sync: dashboardSync.checked }, () => {
+        if (chrome.runtime.lastError) {
+          console.warn('[SentinelAI Popup] Could not save dashboard sync preference:', chrome.runtime.lastError.message);
+          dashboardSync.checked = !dashboardSync.checked;
+        }
+      });
+    });
+  }
+
+  if (openConsoleButton) {
+    openConsoleButton.addEventListener('click', () => {
+      chrome.tabs.create({ url: 'http://127.0.0.1:8000' }, () => {
+        if (chrome.runtime.lastError) {
+          console.warn('[SentinelAI Popup] Could not open the local security console:', chrome.runtime.lastError.message);
         }
       });
     });

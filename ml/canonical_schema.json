@@ -1,0 +1,132 @@
+{
+  "schema_version": "1.0.0",
+  "feature_count": 14,
+  "description": "Canonical 14-feature schema for SentinelAI Phishing & Scam Link Shield. Shared identically across Python training and JavaScript inference.",
+  "features": [
+    {
+      "index": 0,
+      "name": "url_length",
+      "type": "integer",
+      "description": "Total character length of the full URL (lowercased, trimmed).",
+      "min_value": 1,
+      "max_value": null
+    },
+    {
+      "index": 1,
+      "name": "domain_length",
+      "type": "integer",
+      "description": "Character length of the hostname/domain component.",
+      "min_value": 1,
+      "max_value": 255
+    },
+    {
+      "index": 2,
+      "name": "num_dots",
+      "type": "integer",
+      "description": "Count of dot '.' characters within the hostname.",
+      "min_value": 0,
+      "max_value": null
+    },
+    {
+      "index": 3,
+      "name": "has_ip",
+      "type": "binary",
+      "description": "1 if hostname is a raw IPv4 or IPv6 address, 0 otherwise.",
+      "min_value": 0,
+      "max_value": 1
+    },
+    {
+      "index": 4,
+      "name": "has_at_symbol",
+      "type": "binary",
+      "description": "1 if '@' character appears anywhere in the full URL (credential masking), 0 otherwise.",
+      "min_value": 0,
+      "max_value": 1
+    },
+    {
+      "index": 5,
+      "name": "num_hyphens",
+      "type": "integer",
+      "description": "Count of '-' characters within the hostname (typosquatting indicator).",
+      "min_value": 0,
+      "max_value": null
+    },
+    {
+      "index": 6,
+      "name": "num_subdomains",
+      "type": "integer",
+      "description": "Depth of subdomains beyond the root domain (0 for raw IP or domain.tld).",
+      "min_value": 0,
+      "max_value": null
+    },
+    {
+      "index": 7,
+      "name": "is_https",
+      "type": "binary",
+      "description": "1 if URL protocol scheme is HTTPS, 0 for HTTP or other schemes.",
+      "min_value": 0,
+      "max_value": 1
+    },
+    {
+      "index": 8,
+      "name": "has_double_slash_in_path",
+      "type": "binary",
+      "description": "1 if '//' appears anywhere in the URL pathname (open-redirect / evasion indicator), 0 otherwise.",
+      "min_value": 0,
+      "max_value": 1
+    },
+    {
+      "index": 9,
+      "name": "num_suspicious_keywords",
+      "type": "integer",
+      "description": "Count of matched sensitive authentication, banking, or account keywords in path and query.",
+      "min_value": 0,
+      "max_value": null
+    },
+    {
+      "index": 10,
+      "name": "has_suspicious_tld",
+      "type": "binary",
+      "description": "1 if the top-level domain belongs to the documented high-abuse TLD list, 0 otherwise.",
+      "min_value": 0,
+      "max_value": 1
+    },
+    {
+      "index": 11,
+      "name": "num_query_params",
+      "type": "integer",
+      "description": "Count of URL query parameter key-value pairs.",
+      "min_value": 0,
+      "max_value": null
+    },
+    {
+      "index": 12,
+      "name": "special_char_count",
+      "type": "integer",
+      "description": "Count of special characters (%&=?_~) in the full URL.",
+      "min_value": 0,
+      "max_value": null
+    },
+    {
+      "index": 13,
+      "name": "domain_entropy",
+      "type": "float",
+      "description": "Shannon entropy of the hostname character distribution rounded to 3 decimal places.",
+      "min_value": 0.0,
+      "max_value": 8.0
+    }
+  ],
+  "suspicious_tlds": [
+    "xyz", "top", "tk", "ml", "ga", "cf", "gq", "buzz",
+    "fit", "work", "icu", "loan", "click", "country", "kim",
+    "science", "monster", "quest", "live", "cam", "rest",
+    "gdn", "stream", "party", "trade", "bid", "men", "surf",
+    "zip", "mov"
+  ],
+  "suspicious_keywords": [
+    "login", "signin", "verify", "verification", "update",
+    "banking", "secure", "account", "confirm", "password",
+    "credential", "auth", "recover", "wallet", "security",
+    "billing", "invoice", "appleid", "paypal", "metamask"
+  ]
+}

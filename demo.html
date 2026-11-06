@@ -487,62 +487,31 @@
     </div>
   </div>
 
-  <!-- Load Local Model and Feature Logic -->
-  <script src="model.js"></script>
+  <!-- Load the canonical extractor and generated scikit-learn model. -->
+  <script src="ml/features.js"></script>
+  <script src="ml/models/model_exported.js"></script>
   <script>
-    const SUSPICIOUS_TLDS = new Set([
-      'xyz', 'top', 'tk', 'ml', 'ga', 'cf', 'gq', 'buzz',
-      'fit', 'work', 'icu', 'loan', 'click', 'country', 'kim',
-      'science', 'monster', 'quest', 'live', 'cam', 'rest',
-      'gdn', 'stream', 'party', 'trade', 'bid', 'men', 'surf',
-      'zip', 'mov'
-    ]);
-
-    const SUSPICIOUS_KEYWORDS = [
-      'login', 'signin', 'sign-in', 'verify', 'verification', 'update',
-      'banking', 'secure', 'account', 'confirm', 'confirmation', 'password',
-      'credential', 'auth', 'recover', 'wallet', 'ebayisapi',
-      'webscr', 'security', 'validation', 'support-help', 'billing',
-      'invoice', 'appleid', 'paypal', 'metamask', 'seedphrase'
-    ];
-
-    const IPV4_REGEX = /^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/;
-    const IPV6_REGEX = /^\[?[a-fA-F0-9:]+\]?$/;
-
     function extractUrlFeaturesDemo(rawUrl) {
       try {
-        const parsed = new URL(rawUrl);
+        const cleanUrl = /^[a-zA-Z][a-zA-Z\d+.-]*:\/\//.test(rawUrl) ? rawUrl : `http://${rawUrl}`;
+        const parsed = new URL(cleanUrl);
         const hostname = parsed.hostname.toLowerCase();
-        const pathname = parsed.pathname.toLowerCase();
-        const search = parsed.search.toLowerCase();
-        const full = rawUrl.toLowerCase();
-
-        const urlLength = full.length;
-        const domainLength = hostname.length;
-        const isIp = IPV4_REGEX.test(hostname) || (hostname.includes(':') && IPV6_REGEX.test(hostname)) ? 1 : 0;
-        const numDots = (hostname.match(/\./g) || []).length;
-        const numHyphens = (hostname.match(/-/g) || []).length;
-        const hasAtSymbol = full.includes('@') ? 1 : 0;
-
-        const parts = hostname.split('.').filter(Boolean);
-        const numSubdomains = parts.length > 2 ? Math.max(0, parts.length - 2) : 0;
+        const featureArray = SentinelFeatures.extractFeatures(cleanUrl);
+        const tld = hostname.split('.').filter(Boolean).at(-1) || '';
+        const isIp = featureArray[3];
+        const hasAtSymbol = featureArray[4];
+        const numHyphens = featureArray[5];
+        const numSubdomains = featureArray[6];
         const isHttps = parsed.protocol === 'https:' ? 1 : 0;
-        const tld = parts.length > 0 ? parts[parts.length - 1] : '';
-        const hasSuspiciousTld = SUSPICIOUS_TLDS.has(tld) ? 1 : 0;
-
-        const targetString = `${pathname}?${search}`;
-        let suspiciousKeywordsCount = 0;
-        const matchedKeywords = [];
-        for (const kw of SUSPICIOUS_KEYWORDS) {
-          if (targetString.includes(kw)) {
-            suspiciousKeywordsCount++;
-            matchedKeywords.push(kw);
-          }
-        }
-
-        const specialChars = (full.match(/[%&=?_~]/g) || []).length;
-        const domainEntropy = calculateEntropy(hostname);
-        const hasDoubleSlashInPath = pathname.includes('//') ? 1 : 0;
+        const hasSuspiciousTld = featureArray[10];
+        const suspiciousKeywordsCount = featureArray[9];
+        const hasDoubleSlashInPath = featureArray[8];
+        const matchedKeywords = SentinelFeatures.SUSPICIOUS_KEYWORDS.filter(keyword =>
+          `${parsed.pathname}?${parsed.search.slice(1)}`.toLowerCase().includes(keyword)
+        );
+        const domainEntropy = featureArray[13];
+        const urlLength = featureArray[0];
+        const domainLength = featureArray[1];
 
         const flags = [];
         if (isIp === 1) flags.push('Raw IP address used instead of legitimate domain name');
@@ -555,19 +524,13 @@
         if (domainEntropy > 3.5) flags.push(`High algorithmic domain randomness (Shannon entropy: ${domainEntropy})`);
         if (hasDoubleSlashInPath === 1) flags.push('Open redirection path evasion pattern (//) detected');
 
-        const featureArray = [
-          urlLength, domainLength, isIp, numDots, numHyphens,
-          hasAtSymbol, numSubdomains, isHttps, hasSuspiciousTld,
-          suspiciousKeywordsCount, specialChars, domainEntropy, hasDoubleSlashInPath
-        ];
-
         return {
           hostname,
           protocol: parsed.protocol,
           urlLength,
           domainLength,
           isIp,
-          numDots,
+          numDots: featureArray[2],
           numHyphens,
           hasAtSymbol,
           numSubdomains,
@@ -576,9 +539,9 @@
           tld,
           suspiciousKeywordsCount,
           matchedKeywords,
-          specialChars,
+          specialChars: featureArray[12],
           domainEntropy,
-          hasDoubleSlashInPath,
+          hasDoubleSlashInPath: featureArray[8],
           featureArray,
           flags
         };
@@ -600,7 +563,7 @@
       }
 
       // Run on-device inference
-      const riskScore = predictPhishingScore(extracted.featureArray);
+      const riskScore = SentinelModel.predictPhishingScore(extracted.featureArray);
       const riskPercent = Math.round(riskScore * 100);
 
       lastScanData = {
@@ -617,7 +580,7 @@
         <tr><td>Hostname Length</td><td class="val-highlight">${extracted.domainLength} chars</td><td>${extracted.domainLength > 25 ? '⚠ Long Domain' : '✓ Normal'}</td></tr>
         <tr><td>Raw IP Host</td><td class="val-highlight ${extracted.isIp ? 'val-danger' : ''}">${extracted.isIp ? 'YES (1)' : 'NO (0)'}</td><td>${extracted.isIp ? '🚨 High Phishing Risk' : '✓ Legitimate Domain'}</td></tr>
         <tr><td>Contains '@' Delimiter</td><td class="val-highlight ${extracted.hasAtSymbol ? 'val-danger' : ''}">${extracted.hasAtSymbol ? 'YES (1)' : 'NO (0)'}</td><td>${extracted.hasAtSymbol ? '🚨 Deceptive Credential Mask' : '✓ None'}</td></tr>
-        <tr><td>Protocol</td><td class="val-highlight ${!extracted.isHttps ? 'val-danger' : ''}">${extracted.protocol.toUpperCase()}</td><td>${extracted.isHttps ? '✓ TLS Encrypted' : '⚠ Insecure Plaintext'}</td></tr>
+        <tr><td>Protocol</td><td class="val-highlight ${!extracted.isHttps ? 'val-danger' : ''}">${extracted.protocol.toUpperCase()}</td><td>${extracted.isHttps ? '✓ HTTPS scheme' : '⚠ Insecure HTTP scheme'}</td></tr>
         <tr><td>Abusive TLD (.${extracted.tld})</td><td class="val-highlight ${extracted.hasSuspiciousTld ? 'val-danger' : ''}">${extracted.hasSuspiciousTld ? 'YES (1)' : 'NO (0)'}</td><td>${extracted.hasSuspiciousTld ? '⚠ Suspicious TLD' : '✓ Standard TLD'}</td></tr>
         <tr><td>Sensitive Keywords</td><td class="val-highlight ${extracted.suspiciousKeywordsCount ? 'val-danger' : ''}">${extracted.suspiciousKeywordsCount} (${extracted.matchedKeywords.join(', ') || 'none'})</td><td>${extracted.suspiciousKeywordsCount ? '⚠ Auth Target' : '✓ Clean'}</td></tr>
         <tr><td>Domain Entropy</td><td class="val-highlight ${extracted.domainEntropy > 3.5 ? 'val-danger' : ''}">${extracted.domainEntropy}</td><td>${extracted.domainEntropy > 3.5 ? '⚠ High Randomness' : '✓ Normal Language'}</td></tr>

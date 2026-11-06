@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#080c14">
+  <title>SentinelAI · Security Operations</title>
+  <link rel="stylesheet" href="/dashboard/dashboard.css">
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <a class="brand" href="#overview" aria-label="SentinelAI overview">
+        <span class="brand-mark"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M16 3 27 7v8c0 7.3-4.7 12.1-11 14-6.3-1.9-11-6.7-11-14V7l11-4Z"/><path d="m11 16 3.2 3.2L21.5 12"/></svg></span>
+        <span><strong>Sentinel<span>AI</span></strong><small>THREAT OPERATIONS</small></span>
+      </a>
+      <div class="workspace-label">WORKSPACE</div>
+      <nav class="primary-nav" aria-label="Main navigation">
+        <button class="nav-link active" data-view="overview"><span class="nav-icon">◈</span>Overview</button>
+        <button class="nav-link" data-view="monitor"><span class="nav-icon">⌁</span>Live monitoring<span id="monitor-count" class="nav-count">—</span></button>
+        <button class="nav-link" data-view="investigate"><span class="nav-icon">⌕</span>Investigate URL</button>
+        <button class="nav-link" data-view="agent"><span class="nav-icon">✳</span>AI investigation</button>
+        <div class="nav-divider"></div>
+        <div class="workspace-label">MODEL STUDIO</div>
+        <button class="nav-link" data-view="datasets"><span class="nav-icon">▤</span>Dataset explorer</button>
+        <button class="nav-link" data-view="training"><span class="nav-icon">⌘</span>Training lab</button>
+        <button class="nav-link" data-view="registry"><span class="nav-icon">◫</span>Model registry</button>
+        <div class="nav-divider"></div>
+        <button class="nav-link" data-view="history"><span class="nav-icon">◷</span>Scan history</button>
+        <button class="nav-link" data-view="settings"><span class="nav-icon">⚙</span>Settings</button>
+      </nav>
+      <div class="sidebar-bottom">
+        <div class="privacy-card"><span class="privacy-lock">⌑</span><div><strong>Local-first security</strong><small>Scans & training stay on this machine.</small></div><i class="status-orb"></i></div>
+        <div class="user-chip"><span class="avatar">SA</span><span><strong>Security workspace</strong><small>On-device operations</small></span><button id="theme-toggle" class="icon-button" title="Toggle light theme" aria-label="Toggle theme">◐</button></div>
+      </div>
+    </aside>
+
+    <main class="main-area">
+      <header class="topbar">
+        <div class="breadcrumbs"><span>Workspace</span><b>/</b><strong id="page-title">Overview</strong></div>
+        <div class="topbar-right">
+          <div id="api-status" class="connection"><i class="status-orb"></i><span>Checking local engine…</span></div>
+          <span class="topbar-divider"></span>
+          <time id="today-label"></time>
+          <button class="avatar avatar-small" title="SentinelAI workspace">SA</button>
+        </div>
+      </header>
+
+      <div id="toast" class="toast" role="status" aria-live="polite"></div>
+      <div class="content">
+        <section class="view active" id="view-overview">
+          <div class="page-heading heading-row">
+            <div><p class="eyebrow">SECURITY OPERATIONS CENTER</p><h1>Threat overview<span class="heading-dot">.</span></h1><p class="page-subtitle">A clear view of local URL investigations and your active model.</p></div>
+            <button class="button button-quiet" data-go="investigate"><span>＋</span> New investigation</button>
+          </div>
+          <div class="hero-panel">
+            <div class="hero-grid"></div>
+            <div class="hero-copy"><div class="hero-kicker"><span class="pulse-dot"></span> LOCAL PROTECTION ENGINE <span class="hero-separator">•</span> <span id="hero-model-version">MODEL LOADING</span></div><h2>See the signal<br><span>before the threat.</span></h2><p>Investigate suspicious URLs with the trained Random Forest model. Feature extraction and inference run locally.</p><button class="button button-primary" data-go="investigate">Investigate a URL <span>↗</span></button></div>
+            <div class="hero-orbit"><div class="orbit orbit-one"></div><div class="orbit orbit-two"></div><div class="orbit-core"><span>AI</span><small>LOCAL</small></div><i class="orbit-node node-a"></i><i class="orbit-node node-b"></i><i class="orbit-node node-c"></i><div class="orbit-caption">14 FEATURE SIGNALS</div></div>
+          </div>
+          <div class="stat-grid">
+            <article class="stat-card"><div class="stat-top"><span>URL investigations</span><span class="stat-icon cyan">⌕</span></div><strong id="stat-scans">—</strong><small>Local analysis reports</small><div class="stat-foot"><span class="mini-line cyan-line">▁▂▃▂▄▃▅</span><span>All time</span></div></article>
+            <article class="stat-card"><div class="stat-top"><span>High-risk detections</span><span class="stat-icon red">↗</span></div><strong id="stat-high">—</strong><small>Above the high-risk threshold</small><div class="stat-foot"><span class="trend-label red-text">Model probability &gt; 75%</span></div></article>
+            <article class="stat-card"><div class="stat-top"><span>Dataset library</span><span class="stat-icon violet">▤</span></div><strong id="stat-datasets">—</strong><small>CSV datasets available locally</small><div class="stat-foot"><span id="stat-rows" class="trend-label">Data explorer ready</span></div></article>
+            <article class="stat-card"><div class="stat-top"><span>Active model</span><span class="stat-icon green">◫</span></div><strong class="version-stat" id="stat-model">—</strong><small>Trained Random Forest</small><div class="stat-foot"><span class="model-live"><i class="status-orb"></i> INFERENCE READY</span></div></article>
+          </div>
+          <div class="overview-grid">
+            <article class="panel chart-panel"><div class="panel-heading"><div><p class="eyebrow">ACTIVITY</p><h3>Investigation pulse</h3></div><span class="panel-meta">Recent local scans</span></div><div class="chart-wrap"><canvas id="activity-chart" aria-label="Recent investigation activity"></canvas></div><div class="chart-legend"><span><i class="legend-dot green-dot"></i>Low risk</span><span><i class="legend-dot amber-dot"></i>Review</span><span><i class="legend-dot red-dot"></i>High risk</span></div></article>
+            <article class="panel signal-panel"><div class="panel-heading"><div><p class="eyebrow">MODEL OUTPUT</p><h3>Recent detections</h3></div><button class="text-button" data-go="history">View history <span>→</span></button></div><div id="overview-recent" class="recent-list"><div class="empty-state compact">Run a URL investigation to populate local activity.</div></div></article>
+          </div>
+          <div class="bottom-grid">
+            <article class="panel"><div class="panel-heading"><div><p class="eyebrow">MODEL HEALTH</p><h3>Deployed intelligence</h3></div><span class="health-pill"><i class="status-orb"></i> Operational</span></div><div class="model-health"><div class="model-hex">RF</div><div><strong id="overview-model-name">Random Forest classifier</strong><p id="overview-model-date">Loading evaluation metadata…</p></div><button class="button button-small button-quiet" data-go="registry">Registry</button></div><div id="overview-metrics" class="metric-strip"></div></article>
+            <article class="panel"><div class="panel-heading"><div><p class="eyebrow">WORKFLOW</p><h3>Model studio</h3></div><span class="panel-meta">Dataset → Evaluation → Deploy</span></div><div class="workflow"><div><span class="step-number">01</span><strong>Explore data</strong><small>Validate labels & feature coverage</small></div><span class="workflow-arrow">→</span><div><span class="step-number">02</span><strong>Train & evaluate</strong><small>Domain-aware held-out metrics</small></div><span class="workflow-arrow">→</span><div><span class="step-number">03</span><strong>Deploy version</strong><small>Export a real JS model artifact</small></div></div><button class="text-button workflow-link" data-go="training">Open training lab <span>→</span></button></article>
+          </div>
+        </section>
+
+        <section class="view" id="view-monitor">
+          <div class="page-heading heading-row"><div><p class="eyebrow">LOCAL EVENT STREAM</p><h1>Live monitoring<span class="heading-dot">.</span></h1><p class="page-subtitle">Recent investigations submitted to this local platform service.</p></div><div class="monitor-live"><span class="pulse-dot"></span> UPDATING EVERY 10S</div></div>
+          <div class="monitor-banner"><span class="banner-mark">⌁</span><div><strong>Local investigation monitor</strong><p>Dashboard scans appear automatically. Browser-tab scans join this feed only when “Live console sync” is explicitly enabled in the extension popup; otherwise they stay in extension storage.</p></div><button class="button button-small button-quiet" data-go="investigate">Start scan</button></div>
+          <div class="stat-grid two-stats"><article class="stat-card"><div class="stat-top"><span>Investigations logged</span><span class="stat-icon cyan">⌕</span></div><strong id="monitor-scans">—</strong><small>Saved on this device</small></article><article class="stat-card"><div class="stat-top"><span>High-risk URLs</span><span class="stat-icon red">↗</span></div><strong id="monitor-high">—</strong><small>Model score greater than 75%</small></article></div>
+          <article class="panel table-panel"><div class="panel-heading"><div><p class="eyebrow">ACTIVITY STREAM</p><h3>Investigation events</h3></div><span id="monitor-updated" class="panel-meta">Waiting for local engine</span></div><div id="monitor-list" class="table-wrap"></div></article>
+        </section>
+
+        <section class="view" id="view-investigate">
+          <div class="page-heading"><p class="eyebrow">THREAT INTELLIGENCE · LOCAL INFERENCE</p><h1>Investigate a URL<span class="heading-dot">.</span></h1><p class="page-subtitle">Extract canonical features, score with the trained model, and inspect the evidence.</p></div>
+          <div class="investigation-layout">
+            <div class="investigation-main">
+              <article class="panel scan-input-panel"><div class="panel-heading"><div><p class="eyebrow">NEW INVESTIGATION</p><h3>What would you like to analyze?</h3></div><span class="local-tag"><i class="status-orb"></i> 100% LOCAL</span></div><form id="investigate-form"><label class="input-label" for="investigate-url">Website URL</label><div class="url-input-wrap"><span class="input-prefix">↗</span><input id="investigate-url" name="url" type="url" placeholder="https://example.com/account/signin" autocomplete="url" required maxlength="4096"><button class="button button-primary" type="submit"><span class="scan-label">Analyze URL</span><span class="button-arrow">→</span></button></div><p class="input-hint"><span>ⓘ</span> URL and extracted features are processed on this machine. No website is opened.</p></form></article>
+              <div id="investigation-result" class="investigation-result"><div class="result-placeholder"><div class="placeholder-radar"><i></i><i></i><i></i><span>◎</span></div><h3>Ready when you are</h3><p>Submit a URL to see a model-backed risk assessment and transparent signal breakdown.</p></div></div>
+            </div>
+            <aside class="investigation-aside"><article class="panel side-note"><span class="note-icon">✳</span><p class="eyebrow">INVESTIGATION AGENT</p><h3>Evidence, not guesswork.</h3><p>The local analyst applies your active Random Forest model to the canonical 14-feature vector, then shows rule-based URL indicators separately.</p><button class="text-button" data-go="agent">How analysis works <span>→</span></button></article><article class="panel schema-panel"><div class="panel-heading"><div><p class="eyebrow">FEATURE ENGINE</p><h3>Canonical schema</h3></div><span class="schema-count">14</span></div><div id="schema-list" class="schema-list"></div></article></aside>
+          </div>
+        </section>
+
+        <section class="view" id="view-agent">
+          <div class="page-heading"><p class="eyebrow">LOCAL MODEL-POWERED ANALYST</p><h1>AI investigation<span class="heading-dot">.</span></h1><p class="page-subtitle">A transparent investigation workflow powered by the deployed trained model—not generated or fabricated verdicts.</p></div>
+          <div class="agent-grid"><article class="panel agent-intro"><div class="agent-icon">✳</div><p class="eyebrow">INVESTIGATION AGENT · ACTIVE</p><h2>Reason from signals.<br><span>Show the evidence.</span></h2><p>The agent extracts the same canonical features used during training, evaluates them with the current scikit-learn Random Forest export, and combines the actual class probabilities with explicit URL-derived indicators.</p><div class="agent-model-row"><div class="model-hex">RF</div><div><small>ACTIVE MODEL</small><strong id="agent-model-version">Loading…</strong></div><span class="health-pill"><i class="status-orb"></i> Ready</span></div><button class="button button-primary" data-go="investigate">Start an investigation <span>→</span></button></article><article class="panel steps-panel"><p class="eyebrow">ANALYSIS PIPELINE</p><h3>What happens to a URL?</h3><div class="agent-steps"><div class="agent-step"><span>01</span><div><strong>Normalize & parse</strong><p>URL components are normalized locally; invalid schemes are rejected.</p></div></div><div class="agent-step"><span>02</span><div><strong>Extract 14 features</strong><p>Feature names, ordering, and entropy calculation match the Python training schema.</p></div></div><div class="agent-step"><span>03</span><div><strong>Run the trained model</strong><p>The deployed model returns benign and phishing probabilities, with its version attached.</p></div></div><div class="agent-step"><span>04</span><div><strong>Explain observed signals</strong><p>URL heuristics are listed separately from the model probability so evidence is inspectable.</p></div></div></div></article></div>
+          <div class="disclaimer-band"><span>ⓘ</span><p><strong>Scope matters.</strong> The current agent performs local URL-feature inference only. It does not browse the destination, validate its TLS certificate, or contact external threat-intelligence providers.</p></div>
+          <article class="panel last-report-panel"><div class="panel-heading"><div><p class="eyebrow">LATEST AGENT REPORT</p><h3>Most recent analysis</h3></div><button class="text-button" data-go="history">Open history <span>→</span></button></div><div id="agent-latest" class="empty-state">No investigations yet. Submit a URL to create the first report.</div></article>
+        </section>
+
+        <section class="view" id="view-datasets">
+          <div class="page-heading heading-row"><div><p class="eyebrow">MODEL STUDIO · DATA</p><h1>Dataset explorer<span class="heading-dot">.</span></h1><p class="page-subtitle">Import, validate, clean, and inspect labeled URL data before model training.</p></div><label class="button button-primary upload-button">＋ Import CSV<input id="dataset-upload" type="file" accept=".csv,text/csv" hidden></label></div>
+          <div class="dataset-banner"><span class="banner-mark">▤</span><div><strong>Dataset contract</strong><p>CSV needs <code>url</code> and <code>label</code>. Labels accepted: 0/1, benign/phishing, legit/malicious. Optional <code>domain_group</code> supports leakage-resistant splits.</p></div></div>
+          <div class="dataset-layout"><article class="panel dataset-list-panel"><div class="panel-heading"><div><p class="eyebrow">LOCAL LIBRARY</p><h3>Available datasets</h3></div><button id="refresh-datasets" class="icon-button" aria-label="Refresh datasets">↻</button></div><div id="dataset-list" class="dataset-list"><div class="empty-state compact">Loading datasets…</div></div></article><article class="panel dataset-detail-panel"><div class="panel-heading"><div><p class="eyebrow">DATA QUALITY</p><h3 id="dataset-detail-title">Select a dataset</h3></div><span id="dataset-validity" class="panel-meta">No selection</span></div><div id="dataset-summary" class="dataset-summary empty-state compact">Choose a local CSV to inspect its label balance, invalid rows, and sample records.</div><div class="table-wrap dataset-table-wrap"><table><thead id="dataset-columns"></thead><tbody id="dataset-rows"></tbody></table></div><div class="table-pagination"><span id="dataset-page-label">—</span><div><button id="dataset-prev" class="button button-small button-quiet">← Previous</button><button id="dataset-next" class="button button-small button-quiet">Next →</button></div></div></article></div>
+        </section>
+
+        <section class="view" id="view-training">
+          <div class="page-heading"><p class="eyebrow">MODEL STUDIO · LEARNING</p><h1>Training lab<span class="heading-dot">.</span></h1><p class="page-subtitle">Train a real scikit-learn model on your selected labeled dataset, evaluate held-out domains, then export and deploy the version.</p></div>
+          <div class="training-layout"><div class="training-main"><article class="panel training-config"><div class="panel-heading"><div><p class="eyebrow">EXPERIMENT CONFIGURATION</p><h3>Configure training run</h3></div><span class="local-tag"><i class="status-orb"></i> LOCAL CPU</span></div><form id="training-form"><div class="form-grid"><label>Training dataset<select id="training-dataset" required><option value="">Loading datasets…</option></select></label><label>Number of trees <div class="range-row"><input id="estimators" type="range" min="10" max="200" step="10" value="20"><output id="estimators-value">20</output></div><small>More estimators increase training time and model size.</small></label><label>Maximum depth <div class="range-row"><input id="max-depth" type="range" min="2" max="20" step="1" value="7"><output id="depth-value">7</output></div><small>Controls tree complexity and overfitting.</small></label><div class="config-note"><span>⌘</span><div><strong>Leakage-aware evaluation</strong><small>80/20 GroupShuffleSplit and 5-fold GroupKFold use registered domains as groups.</small></div></div></div><button id="start-training" class="button button-primary" type="submit"><span>Start training</span><span>→</span></button></form></article><article id="training-progress-card" class="panel training-progress-card hidden"><div class="panel-heading"><div><p class="eyebrow">TRAINING RUN</p><h3 id="training-stage">Waiting for worker…</h3></div><span id="training-percent" class="progress-number">0%</span></div><div class="progress-track"><span id="training-progress-fill"></span></div><p id="training-job-info" class="panel-meta">Preparing local training job</p><div id="training-error" class="error-box hidden"></div></article><article id="training-results" class="panel training-results hidden"><div class="panel-heading"><div><p class="eyebrow">HELD-OUT EVALUATION</p><h3>Measured model performance</h3></div><span id="training-model-version" class="model-version-chip"></span></div><div id="training-metrics" class="training-metrics"></div><div id="training-confusion" class="confusion-wrap"></div><p class="evaluation-note">Metrics are measured on held-out registered domains. They describe this dataset and split; they do not guarantee future detection performance.</p></article></div><aside class="panel training-info"><p class="eyebrow">REAL MODEL TRAINING</p><h3>Designed for measured progress.</h3><p>Training runs in a local Python worker—not in this web page or the extension service worker.</p><div class="training-check"><span>✓</span><p><strong>Dataset validation</strong><small>Rejects invalid URL/label rows and reports duplicates.</small></p></div><div class="training-check"><span>✓</span><p><strong>Domain-level split</strong><small>Groups sibling URLs to reduce train/test leakage.</small></p></div><div class="training-check"><span>✓</span><p><strong>Model export</strong><small>Transpiles actual fitted trees into a JS artifact.</small></p></div><div class="training-check"><span>✓</span><p><strong>Versioned deployment</strong><small>Retains model and metrics in the local registry.</small></p></div><div class="training-caution">Training duration depends on dataset size and available CPU / memory.</div></aside></div>
+        </section>
+
+        <section class="view" id="view-registry">
+          <div class="page-heading heading-row"><div><p class="eyebrow">MODEL STUDIO · GOVERNANCE</p><h1>Model registry<span class="heading-dot">.</span></h1><p class="page-subtitle">Versioned model artifacts, actual evaluation metadata, and exportable browser inference.</p></div><button class="button button-quiet" data-go="training">＋ Train a model</button></div>
+          <div class="registry-banner"><span class="banner-mark">◫</span><div><strong>Active model is deployed to the local analysis service</strong><p>Successful training writes a versioned artifact and updates the service inference model. To update the extension package, reload the unpacked extension after the generated export is deployed.</p></div></div>
+          <div id="registry-list" class="registry-list"><div class="empty-state">Loading model registry…</div></div>
+          <article class="panel compare-panel"><div class="panel-heading"><div><p class="eyebrow">SIDE-BY-SIDE</p><h3>Compare model versions</h3></div></div><form id="compare-form" class="compare-form"><label>Version A<select id="compare-left"></select></label><span class="compare-vs">VS</span><label>Version B<select id="compare-right"></select></label><button class="button button-small button-primary" type="submit">Compare metrics</button></form><div id="compare-results" class="compare-results"></div></article>
+        </section>
+
+        <section class="view" id="view-history">
+          <div class="page-heading heading-row"><div><p class="eyebrow">AUDIT TRAIL · LOCAL ONLY</p><h1>Scan history<span class="heading-dot">.</span></h1><p class="page-subtitle">URL investigations run through the local platform service, newest first.</p></div><button id="refresh-history" class="button button-quiet">↻ Refresh</button></div>
+          <div class="history-summary"><span class="history-icon">◷</span><div><strong id="history-count">— investigations</strong><small>Stored in the local platform data folder</small></div><span class="history-privacy"><i class="status-orb"></i> PRIVATE TO THIS DEVICE</span></div>
+          <article class="panel table-panel"><div class="panel-heading"><div><p class="eyebrow">RECENT INVESTIGATIONS</p><h3>Analysis history</h3></div><span id="history-updated" class="panel-meta"></span></div><div id="history-table" class="table-wrap"></div></article>
+        </section>
+
+        <section class="view" id="view-settings">
+          <div class="page-heading"><p class="eyebrow">WORKSPACE PREFERENCES</p><h1>Settings<span class="heading-dot">.</span></h1><p class="page-subtitle">Local dashboard appearance and data controls.</p></div>
+          <div class="settings-grid"><article class="panel settings-panel"><div class="panel-heading"><div><p class="eyebrow">APPEARANCE</p><h3>Workspace display</h3></div></div><div class="setting-row"><div><strong>Light theme</strong><p>Switch between the dark operations console and a light workspace.</p></div><button id="settings-theme-toggle" class="switch" role="switch" aria-checked="false" aria-label="Toggle light theme"><span></span></button></div><div class="setting-row"><div><strong>Reduce motion</strong><p>Respect your preference for fewer animated interface effects.</p></div><button id="motion-toggle" class="switch" role="switch" aria-checked="false" aria-label="Toggle reduced motion"><span></span></button></div></article><article class="panel settings-panel"><div class="panel-heading"><div><p class="eyebrow">LOCAL ENGINE</p><h3>Service information</h3></div></div><div class="service-info"><span>Platform API</span><strong>127.0.0.1 · port 8000</strong><span>Inference mode</span><strong>Python scikit-learn · local</strong><span>Feature contract</span><strong>Canonical 14-feature schema</strong><span>Network reputation</span><strong>Not queried</strong></div><button id="check-engine" class="button button-small button-quiet">Check local engine</button></article><article class="panel settings-panel data-control"><div class="panel-heading"><div><p class="eyebrow">DATA & PRIVACY</p><h3>Clear local analysis history</h3></div></div><p>Removes URL investigation history saved by this platform. It does not delete training datasets, model versions, or browser extension data.</p><button id="clear-history" class="button button-danger">Clear platform history</button></article></div>
+        </section>
+      </div>
+      <footer class="app-footer"><span>SentinelAI <b>·</b> Local security operations</span><span>MODEL INFERENCE & DATASETS STAY ON THIS DEVICE</span></footer>
+    </main>
+  </div>
+  <script src="/dashboard/dashboard.js"></script>
+</body>
+</html>

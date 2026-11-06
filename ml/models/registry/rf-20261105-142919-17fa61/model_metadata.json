@@ -1,0 +1,168 @@
+{
+  "model_version": "rf-20261105-142919-17fa61",
+  "model_type": "RandomForestClassifier",
+  "transpiler": "m2cgen 0.10.0",
+  "date_trained": "2026-11-05 14:29:20 UTC",
+  "hyperparameters": {
+    "n_estimators": 20,
+    "max_depth": 7,
+    "min_samples_leaf": 2,
+    "max_features": "sqrt",
+    "random_state": 42
+  },
+  "dataset": {
+    "total_samples": 7998,
+    "phishing_samples": 3998,
+    "benign_samples": 4000,
+    "unique_domain_groups": 5380,
+    "phishing_sources": [
+      "Phishing.Database active feed (Mitchell Krogza)",
+      "OpenPhish public community feed"
+    ],
+    "benign_sources": [
+      "Majestic Million Top Domains (with path and subdomain enrichment)"
+    ],
+    "source_file": "dataset.csv"
+  },
+  "split_strategy": {
+    "type": "GroupShuffleSplit",
+    "group_key": "domain_group (eTLD+1 registered domain or IP)",
+    "train_size": 6537,
+    "test_size": 1461,
+    "train_unique_domains": 4304,
+    "test_unique_domains": 1076,
+    "domain_overlap": 0
+  },
+  "evaluation_metrics": {
+    "accuracy": 0.9890485968514716,
+    "precision": 0.9940476190476191,
+    "recall": 0.9823529411764705,
+    "f1_score": 0.9881656804733728,
+    "roc_auc": 0.9994482940423288,
+    "pr_auc": 0.999386685004947,
+    "false_positive_rate": 0.005121638924455826,
+    "false_negative_rate": 0.01764705882352941,
+    "confusion_matrix": {
+      "true_negative": 777,
+      "false_positive": 4,
+      "false_negative": 12,
+      "true_positive": 668
+    }
+  },
+  "cross_validation_5_fold": {
+    "mean_accuracy": 0.9872478893058162,
+    "std_accuracy": 0.0053399856524382755,
+    "mean_f1": 0.9871147034661181,
+    "std_f1": 0.0055670635461525925,
+    "mean_roc_auc": 0.9994981772080399,
+    "std_roc_auc": 0.0003179873726375552
+  },
+  "feature_importances": [
+    {
+      "rank": 1,
+      "name": "is_https",
+      "index": 7,
+      "importance": 0.2858384011869982
+    },
+    {
+      "rank": 2,
+      "name": "url_length",
+      "index": 0,
+      "importance": 0.267803515678287
+    },
+    {
+      "rank": 3,
+      "name": "has_ip",
+      "index": 3,
+      "importance": 0.13183282631121768
+    },
+    {
+      "rank": 4,
+      "name": "num_dots",
+      "index": 2,
+      "importance": 0.12256413370661143
+    },
+    {
+      "rank": 5,
+      "name": "domain_length",
+      "index": 1,
+      "importance": 0.059567280873460235
+    },
+    {
+      "rank": 6,
+      "name": "domain_entropy",
+      "index": 13,
+      "importance": 0.05703404908256352
+    },
+    {
+      "rank": 7,
+      "name": "num_suspicious_keywords",
+      "index": 9,
+      "importance": 0.033481166995849077
+    },
+    {
+      "rank": 8,
+      "name": "special_char_count",
+      "index": 12,
+      "importance": 0.020954018087679892
+    },
+    {
+      "rank": 9,
+      "name": "num_subdomains",
+      "index": 6,
+      "importance": 0.007328948796899751
+    },
+    {
+      "rank": 10,
+      "name": "num_query_params",
+      "index": 11,
+      "importance": 0.006817496995326582
+    },
+    {
+      "rank": 11,
+      "name": "has_suspicious_tld",
+      "index": 10,
+      "importance": 0.004642861094813887
+    },
+    {
+      "rank": 12,
+      "name": "num_hyphens",
+      "index": 5,
+      "importance": 0.002115807247254077
+    },
+    {
+      "rank": 13,
+      "name": "has_at_symbol",
+      "index": 4,
+      "importance": 1.8040988212912115e-05
+    },
+    {
+      "rank": 14,
+      "name": "has_double_slash_in_path",
+      "index": 8,
+      "importance": 1.4529548258363417e-06
+    }
+  ],
+  "feature_schema": [
+    "url_length",
+    "domain_length",
+    "num_dots",
+    "has_ip",
+    "has_at_symbol",
+    "num_hyphens",
+    "num_subdomains",
+    "is_https",
+    "has_double_slash_in_path",
+    "num_suspicious_keywords",
+    "has_suspicious_tld",
+    "num_query_params",
+    "special_char_count",
+    "domain_entropy"
+  ],
+  "recommended_thresholds": {
+    "safe_upper_bound": 0.4,
+    "suspicious_lower_bound": 0.4,
+    "high_risk_threshold": 0.75
+  },
+  "deployment": "active"
+}
