@@ -810,6 +810,25 @@ def ml_asset(asset_path: str) -> FileResponse:
     return FileResponse(path, media_type=media_type)
 
 
+@app.get("/assets/{asset_path:path}")
+def site_asset(asset_path: str) -> FileResponse:
+    assets_root = (ROOT_DIR / "assets").resolve()
+    path = (assets_root / asset_path).resolve()
+    if assets_root not in path.parents or not path.is_file():
+        raise HTTPException(status_code=404, detail="Asset was not found.")
+    mime_types = {
+        ".css": "text/css",
+        ".js": "text/javascript",
+        ".woff2": "font/woff2",
+        ".png": "image/png",
+        ".svg": "image/svg+xml"
+    }
+    media_type = mime_types.get(path.suffix)
+    if media_type is None:
+        raise HTTPException(status_code=403, detail="File type not permitted.")
+    return FileResponse(path, media_type=media_type)
+
+
 @app.get("/icons/{asset_path:path}")
 def icon_asset(asset_path: str) -> FileResponse:
     icons_root = (ROOT_DIR / "icons").resolve()

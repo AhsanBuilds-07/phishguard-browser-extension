@@ -3,207 +3,256 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="theme-color" content="#080c14">
-  <title>SentinelAI · Operator Identity & Secure 2FA Access</title>
-  <link rel="stylesheet" href="dashboard/dashboard.css">
+  <meta name="theme-color" content="#08090a">
+  <title>Sign in — SentinelAI</title>
+  <link rel="icon" href="/icons/icon48.png" type="image/png">
+  <link rel="stylesheet" href="/assets/css/brand.css">
   <style>
-    :root {
-      --cyber-bg: #080c14;
-      --cyber-card: rgba(15, 22, 34, 0.85);
-      --cyber-card-border: rgba(56, 189, 248, 0.2);
-      --cyber-glow: 0 0 40px rgba(56, 189, 248, 0.15);
-      --cyber-blue: #38bdf8;
-      --cyber-green: #10b981;
-      --cyber-red: #ef4444;
-      --cyber-amber: #f59e0b;
-      --cyber-text: #f8fafc;
-      --cyber-muted: #94a3b8;
+    body {
+      min-height: 100vh;
     }
 
-    body {
-      background: var(--cyber-bg);
-      background-image: 
-        radial-gradient(circle at 15% 20%, rgba(56, 189, 248, 0.08) 0%, transparent 40%),
-        radial-gradient(circle at 85% 80%, rgba(16, 185, 129, 0.06) 0%, transparent 40%),
-        linear-gradient(rgba(8, 12, 20, 0.95), rgba(8, 12, 20, 0.95));
-      color: var(--cyber-text);
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    .auth {
+      display: grid;
+      grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr);
       min-height: 100vh;
-      margin: 0;
+    }
+
+    /* ------------------------------------------------------------------
+       Left: brand panel
+       ------------------------------------------------------------------ */
+
+    .side {
+      position: relative;
       display: flex;
       flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      padding: 30px 16px;
-      box-sizing: border-box;
-      position: relative;
-      overflow-x: hidden;
+      padding: 32px clamp(24px, 4vw, 56px) 32px;
+      border-right: 1px solid var(--line);
+      overflow: hidden;
     }
 
-    /* Ambient cyber grid line */
-    body::before {
-      content: "";
+    .side-field {
       position: absolute;
       inset: 0;
-      background-size: 40px 40px;
-      background-image: 
-        linear-gradient(to right, rgba(255, 255, 255, 0.02) 1px, transparent 1px),
-        linear-gradient(to bottom, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
-      pointer-events: none;
+      z-index: -1;
+      background-image:
+        linear-gradient(var(--line) 1px, transparent 1px),
+        linear-gradient(90deg, var(--line) 1px, transparent 1px);
+      background-size: 56px 56px;
+      mask-image: radial-gradient(ellipse 80% 70% at 30% 60%, #000 0%, transparent 75%);
+      -webkit-mask-image: radial-gradient(ellipse 80% 70% at 30% 60%, #000 0%, transparent 75%);
+      opacity: 0.5;
     }
 
-    .auth-container {
-      width: 100%;
-      max-width: 480px;
-      position: relative;
-      z-index: 10;
-    }
-
-    /* Brand Header */
-    .brand-header {
+    .side-top {
       display: flex;
-      flex-direction: column;
+      justify-content: space-between;
       align-items: center;
-      text-align: center;
-      margin-bottom: 24px;
     }
 
-    .brand-shield {
-      width: 52px;
-      height: 52px;
-      background: linear-gradient(135deg, #0284c7 0%, #2563eb 100%);
-      border-radius: 14px;
+    .side-back {
+      font-family: var(--mono);
+      font-size: 12px;
+      color: var(--ink-3);
+      transition: color 120ms linear;
+    }
+
+    .side-back:hover {
+      color: var(--ink);
+    }
+
+    .side-back span {
+      display: inline-block;
+      transition: transform 200ms var(--snap);
+    }
+
+    .side-back:hover span {
+      transform: translate3d(-3px, 0, 0);
+    }
+
+    .side-main {
+      margin-top: auto;
+      margin-bottom: auto;
+      padding: 64px 0;
+    }
+
+    .side-title {
+      margin-top: 22px;
+      font-size: clamp(40px, 5.2vw, 76px);
+    }
+
+    .side-title .dim {
+      color: var(--ink-4);
+    }
+
+    .side-lead {
+      margin-top: 24px;
+      max-width: 440px;
+      color: var(--ink-2);
+    }
+
+    .feed {
+      margin-top: 48px;
+      max-width: 460px;
+      border: 1px solid var(--line);
+      background: var(--card);
+    }
+
+    .feed-head {
       display: flex;
+      justify-content: space-between;
       align-items: center;
-      justify-content: center;
-      box-shadow: 0 0 25px rgba(2, 132, 199, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.3);
-      margin-bottom: 14px;
+      height: 36px;
+      padding: 0 14px;
+      border-bottom: 1px solid var(--line);
     }
 
-    .brand-shield svg {
-      width: 28px;
-      height: 28px;
-      stroke: #ffffff;
-      fill: none;
-      stroke-width: 2;
-    }
-
-    .brand-title {
-      font-size: 24px;
-      font-weight: 800;
-      letter-spacing: -0.02em;
-      margin: 0;
-      color: #ffffff;
-      display: flex;
-      align-items: center;
-      gap: 6px;
-    }
-
-    .brand-title span {
-      color: var(--cyber-blue);
-    }
-
-    .brand-sub {
-      color: var(--cyber-muted);
-      font-size: 13px;
-      margin-top: 6px;
-    }
-
-    /* Security Assurance Pill */
-    .sec-badge-row {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 8px;
-      margin-top: 10px;
-    }
-
-    .sec-pill {
+    .feed-head .label {
       font-size: 10px;
-      font-weight: 700;
-      letter-spacing: 0.5px;
-      padding: 3px 10px;
-      border-radius: 9999px;
-      background: rgba(56, 189, 248, 0.1);
-      border: 1px solid rgba(56, 189, 248, 0.25);
-      color: var(--cyber-blue);
-      display: flex;
-      align-items: center;
-      gap: 5px;
     }
 
-    .sec-pill.green {
-      background: rgba(16, 185, 129, 0.1);
-      border-color: rgba(16, 185, 129, 0.25);
-      color: var(--cyber-green);
-    }
-
-    /* Main Auth Box */
-    .auth-card {
-      background: var(--cyber-card);
-      border: 1px solid var(--cyber-card-border);
-      border-radius: 20px;
-      padding: 32px 28px;
-      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5), var(--cyber-glow);
-      backdrop-filter: blur(20px);
+    .feed-list {
+      height: 168px;
+      overflow: hidden;
       position: relative;
     }
 
-    /* Tab Switcher */
-    .tab-nav {
+    .feed-row {
+      display: grid;
+      grid-template-columns: 52px 1fr auto;
+      gap: 10px;
+      align-items: center;
+      height: 42px;
+      padding: 0 14px;
+      border-bottom: 1px solid var(--line);
+      font-family: var(--mono);
+      font-size: 12px;
+    }
+
+    .feed-row time {
+      color: var(--ink-4);
+      font-size: 11px;
+    }
+
+    .feed-row span {
+      color: var(--ink-2);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .feed-row b {
+      font-size: 10px;
+      letter-spacing: 0.08em;
+      font-weight: 800;
+      padding: 1px 5px;
+    }
+
+    .feed-row b.bad { background: var(--danger); color: var(--canvas); }
+    .feed-row b.ok { color: var(--ink-3); font-weight: 400; }
+    .feed-row b.warn { color: var(--warn); border: 1px solid var(--warn); padding: 0 4px; }
+
+    .side-foot {
       display: flex;
-      background: rgba(11, 16, 25, 0.8);
-      border: 1px solid rgba(255, 255, 255, 0.08);
-      border-radius: 12px;
-      padding: 4px;
-      margin-bottom: 24px;
-      gap: 4px;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    /* ------------------------------------------------------------------
+       Right: form panel
+       ------------------------------------------------------------------ */
+
+    .panel {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 48px clamp(20px, 5vw, 64px);
+    }
+
+    .card {
+      width: 100%;
+      max-width: 420px;
+    }
+
+    .card-head h2 {
+      font-family: var(--mono);
+      font-weight: 800;
+      font-size: 30px;
+      letter-spacing: -0.045em;
+      line-height: 1.05;
+    }
+
+    .card-head p {
+      margin-top: 8px;
+      font-size: 14px;
+      color: var(--ink-2);
+    }
+
+    /* Tabs */
+
+    .tabs {
+      position: relative;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      margin: 28px 0 22px;
+      border-bottom: 1px solid var(--line);
     }
 
     .tab-btn {
-      flex: 1;
-      background: transparent;
-      border: none;
-      color: var(--cyber-muted);
-      font-size: 13px;
-      font-weight: 700;
-      padding: 10px 0;
-      border-radius: 9px;
-      cursor: pointer;
-      transition: all 0.2s ease;
-      text-align: center;
+      height: 44px;
+      font-family: var(--mono);
+      font-weight: 800;
+      font-size: 12px;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: var(--ink-3);
+      transition: color 120ms linear;
     }
 
     .tab-btn.active {
-      background: linear-gradient(135deg, rgba(56, 189, 248, 0.18), rgba(37, 99, 235, 0.18));
-      color: #ffffff;
-      border: 1px solid rgba(56, 189, 248, 0.35);
-      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+      color: var(--ink);
     }
 
-    /* Social Google Button */
+    .tab-btn:hover:not(.active) {
+      color: var(--ink-2);
+    }
+
+    .tab-ink {
+      position: absolute;
+      left: 0;
+      bottom: -1px;
+      width: 50%;
+      height: 2px;
+      background: var(--accent);
+      transition: transform 420ms var(--snap);
+    }
+
+    .tabs[data-mode="register"] .tab-ink {
+      transform: translate3d(100%, 0, 0);
+    }
+
+    /* Google */
+
     .btn-google {
-      width: 100%;
-      background: #ffffff;
-      color: #1f2937;
-      border: 1px solid #e5e7eb;
-      border-radius: 12px;
-      padding: 12px 16px;
-      font-size: 14px;
-      font-weight: 600;
       display: flex;
       align-items: center;
       justify-content: center;
       gap: 12px;
-      cursor: pointer;
-      transition: all 0.2s ease;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+      width: 100%;
+      height: 48px;
+      border: 1px solid var(--line-hi);
+      font-size: 14px;
+      font-weight: 600;
+      transition: border-color 0ms, transform 220ms var(--snap);
     }
 
     .btn-google:hover {
-      background: #f8fafc;
-      transform: translateY(-1px);
-      box-shadow: 0 6px 18px rgba(255, 255, 255, 0.1);
+      border-color: var(--ink);
+    }
+
+    .btn-google:active {
+      transform: scale(0.98);
+      transition-duration: 50ms;
     }
 
     .btn-google svg {
@@ -211,513 +260,637 @@
       height: 18px;
     }
 
-    /* Divider */
-    .or-divider {
+    .or {
       display: flex;
       align-items: center;
-      margin: 20px 0;
-      color: #64748b;
+      gap: 14px;
+      margin: 22px 0;
+      font-family: var(--mono);
       font-size: 11px;
-      font-weight: 700;
-      letter-spacing: 1px;
+      color: var(--ink-4);
       text-transform: uppercase;
+      letter-spacing: 0.12em;
     }
 
-    .or-divider::before, .or-divider::after {
+    .or::before,
+    .or::after {
       content: "";
       flex: 1;
       height: 1px;
-      background: rgba(255, 255, 255, 0.08);
+      background: var(--line);
     }
 
-    .or-divider span {
-      padding: 0 12px;
-    }
+    /* Fields */
 
-    /* Form Fields */
-    .form-group {
+    .field {
       margin-bottom: 16px;
-      text-align: left;
     }
 
-    .form-label {
+    .field-label {
       display: flex;
       justify-content: space-between;
-      align-items: center;
-      font-size: 12px;
-      font-weight: 600;
-      color: #cbd5e1;
-      margin-bottom: 6px;
+      align-items: baseline;
+      margin-bottom: 8px;
+      font-family: var(--mono);
+      font-size: 11px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--ink-3);
+    }
+
+    .field-label a {
+      text-transform: none;
+      letter-spacing: 0;
+      color: var(--ink-2);
+      border-bottom: 1px solid var(--line-hi);
+    }
+
+    .field-label a:hover {
+      color: var(--ink);
+      border-bottom-color: var(--ink);
     }
 
     .input-wrap {
       position: relative;
       display: flex;
       align-items: center;
+      border: 1px solid var(--line-hi);
+      background: var(--card);
+      transition: border-color 0ms;
     }
 
-    .input-icon {
-      position: absolute;
-      left: 14px;
-      color: #64748b;
-      pointer-events: none;
-      display: flex;
-      align-items: center;
+    .input-wrap:focus-within {
+      border-color: var(--ink-2);
+      box-shadow: inset 2px 0 0 var(--accent);
     }
 
     .form-input {
-      width: 100%;
-      background: rgba(11, 16, 25, 0.9);
-      border: 1px solid rgba(255, 255, 255, 0.12);
-      border-radius: 11px;
-      padding: 12px 14px 12px 42px;
-      font-size: 13px;
-      color: #ffffff;
-      outline: none;
-      transition: all 0.2s ease;
-      box-sizing: border-box;
+      flex: 1;
+      min-width: 0;
+      height: 48px;
+      padding: 0 14px;
+      background: transparent;
+      border: 0;
+      outline: 0;
+      font-size: 15px;
+      color: var(--ink);
     }
 
-    .form-input:focus {
-      border-color: var(--cyber-blue);
-      box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.2);
-      background: rgba(15, 23, 42, 0.95);
+    .form-input::placeholder {
+      color: var(--ink-4);
     }
 
     .password-toggle {
-      position: absolute;
-      right: 14px;
-      background: transparent;
-      border: none;
-      color: #64748b;
-      cursor: pointer;
-      padding: 0;
-      display: flex;
-      align-items: center;
+      height: 48px;
+      padding: 0 14px;
+      font-family: var(--mono);
+      font-size: 11px;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--ink-3);
     }
 
     .password-toggle:hover {
-      color: #94a3b8;
+      color: var(--ink);
     }
 
-    /* Password Entropy Meter */
-    .pwd-meter-wrap {
+    /* Strength meter: 4 discrete segments */
+
+    .pwd-meter {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 3px;
       margin-top: 8px;
     }
 
-    .pwd-meter-bar {
-      height: 4px;
-      background: rgba(255, 255, 255, 0.08);
-      border-radius: 9999px;
-      overflow: hidden;
-      margin-bottom: 4px;
-    }
-
-    .pwd-meter-fill {
-      height: 100%;
-      width: 0%;
-      transition: width 0.3s ease, background-color 0.3s ease;
+    .pwd-meter i {
+      height: 3px;
+      background: var(--line);
+      transform-origin: 0 50%;
+      transition: background-color 0ms, transform 300ms var(--snap);
     }
 
     .pwd-meter-label {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 6px;
+      font-family: var(--mono);
       font-size: 11px;
-      color: var(--cyber-muted);
-      display: flex;
-      justify-content: space-between;
+      color: var(--ink-3);
     }
 
-    /* 2FA Toggle Box */
-    .two-factor-box {
-      background: rgba(56, 189, 248, 0.06);
-      border: 1px solid rgba(56, 189, 248, 0.2);
-      border-radius: 12px;
-      padding: 12px 14px;
-      margin-bottom: 18px;
+    /* 2FA switch row */
+
+    .twofa-row {
       display: flex;
       align-items: center;
       justify-content: space-between;
+      gap: 16px;
+      margin: 6px 0 20px;
+      padding: 14px;
+      border: 1px solid var(--line);
     }
 
-    .two-factor-info {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
-
-    .two-factor-info strong {
+    .twofa-row strong {
       display: block;
+      font-size: 14px;
+      font-weight: 600;
+    }
+
+    .twofa-row small {
+      display: block;
+      margin-top: 2px;
       font-size: 12px;
-      color: #ffffff;
+      color: var(--ink-3);
     }
 
-    .two-factor-info small {
-      font-size: 11px;
-      color: var(--cyber-muted);
-    }
-
-    /* Switch Component */
     .switch {
       position: relative;
-      display: inline-block;
-      width: 40px;
-      height: 22px;
+      flex: 0 0 auto;
+      width: 44px;
+      height: 24px;
+      cursor: pointer;
     }
 
     .switch input {
+      position: absolute;
       opacity: 0;
-      width: 0;
-      height: 0;
+      inset: 0;
+      margin: 0;
+      cursor: pointer;
     }
 
     .slider {
       position: absolute;
-      cursor: pointer;
       inset: 0;
-      background-color: #334155;
-      transition: .3s;
-      border-radius: 34px;
+      border: 1px solid var(--line-hi);
+      background: var(--card);
+      transition: background-color 120ms linear, border-color 0ms;
     }
 
-    .slider:before {
-      position: absolute;
+    .slider::after {
       content: "";
-      height: 16px;
-      width: 16px;
+      position: absolute;
+      top: 3px;
       left: 3px;
-      bottom: 3px;
-      background-color: white;
-      transition: .3s;
-      border-radius: 50%;
+      width: 16px;
+      height: 16px;
+      background: var(--ink-3);
+      transition: transform 360ms var(--snap), background-color 0ms;
     }
 
-    input:checked + .slider {
-      background-color: var(--cyber-blue);
+    .switch input:checked + .slider {
+      background: var(--accent);
+      border-color: var(--accent);
     }
 
-    input:checked + .slider:before {
-      transform: translateX(18px);
+    .switch input:checked + .slider::after {
+      background: var(--accent-ink);
+      transform: translate3d(20px, 0, 0);
     }
 
-    /* Action Buttons */
+    .switch input:focus-visible + .slider {
+      outline: 1px solid var(--accent);
+      outline-offset: 3px;
+    }
+
+    /* Submit + helpers */
+
     .btn-submit {
       width: 100%;
-      background: linear-gradient(135deg, #0284c7 0%, #2563eb 100%);
-      color: #ffffff;
-      border: none;
-      border-radius: 12px;
-      padding: 13px;
-      font-size: 14px;
-      font-weight: 700;
-      letter-spacing: 0.3px;
-      cursor: pointer;
-      transition: all 0.2s ease;
-      box-shadow: 0 4px 15px rgba(2, 132, 199, 0.4);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 8px;
+      margin-top: 6px;
+      justify-content: space-between;
     }
 
-    .btn-submit:hover {
-      background: linear-gradient(135deg, #0369a1 0%, #1d4ed8 100%);
-      box-shadow: 0 6px 20px rgba(2, 132, 199, 0.6);
-      transform: translateY(-1px);
+    .btn-submit.is-busy {
+      pointer-events: none;
+      opacity: 0.7;
     }
 
-    /* Quick Fill Demo Helper */
-    .demo-helper-btn {
+    .demo-helper {
+      display: block;
       width: 100%;
-      background: rgba(255, 255, 255, 0.04);
-      border: 1px dashed rgba(255, 255, 255, 0.15);
-      border-radius: 10px;
-      padding: 8px;
-      margin-top: 14px;
+      margin-top: 12px;
+      padding: 10px 12px;
+      border: 1px dashed var(--line-hi);
+      font-family: var(--mono);
       font-size: 11px;
-      color: #94a3b8;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 6px;
-      transition: all 0.2s ease;
+      color: var(--ink-3);
+      text-align: left;
+      transition: border-color 0ms, color 120ms linear;
     }
 
-    .demo-helper-btn:hover {
-      background: rgba(56, 189, 248, 0.08);
-      border-color: rgba(56, 189, 248, 0.3);
-      color: var(--cyber-blue);
+    .demo-helper:hover {
+      border-color: var(--ink-3);
+      color: var(--ink);
     }
 
-    /* 2FA Challenge Screen */
+    .demo-helper strong {
+      color: var(--ink);
+      font-weight: 800;
+    }
+
+    /* Alert */
+
+    .alert {
+      display: none;
+      margin-bottom: 18px;
+      padding: 12px 14px;
+      font-size: 13px;
+      border-left: 2px solid currentColor;
+    }
+
+    .alert.error {
+      display: block;
+      color: var(--danger);
+      background: rgba(240, 70, 78, 0.07);
+    }
+
+    .alert.success {
+      display: block;
+      color: var(--safe);
+      background: rgba(70, 201, 139, 0.07);
+    }
+
+    /* 2FA view */
+
     .two-fa-screen {
       display: none;
-      text-align: center;
     }
 
-    .two-fa-icon {
-      width: 60px;
-      height: 60px;
-      background: rgba(16, 185, 129, 0.12);
-      border: 1px solid rgba(16, 185, 129, 0.3);
-      border-radius: 18px;
+    .twofa-head .label {
+      margin-bottom: 18px;
+    }
+
+    .otp {
       display: grid;
-      place-items: center;
-      margin: 0 auto 16px;
-      color: var(--cyber-green);
-      box-shadow: 0 0 25px rgba(16, 185, 129, 0.25);
+      grid-template-columns: repeat(3, 1fr) 14px repeat(3, 1fr);
+      gap: 8px;
+      margin: 28px 0 16px;
     }
 
-    .otp-inputs {
-      display: flex;
-      justify-content: center;
-      gap: 10px;
-      margin: 24px 0 16px;
+    .otp-sep {
+      align-self: center;
+      height: 1px;
+      background: var(--line-hi);
     }
 
     .otp-box {
-      width: 48px;
-      height: 54px;
+      width: 100%;
+      height: 64px;
+      padding: 0;
+      border: 1px solid var(--line-hi);
+      background: var(--card);
+      outline: 0;
       text-align: center;
-      font-size: 22px;
+      font-family: var(--mono);
       font-weight: 800;
-      color: var(--cyber-blue);
-      background: rgba(11, 16, 25, 0.9);
-      border: 1px solid rgba(255, 255, 255, 0.15);
-      border-radius: 12px;
-      outline: none;
-      transition: all 0.2s ease;
+      font-size: 28px;
+      color: var(--ink);
+      caret-color: var(--accent);
+      transition: border-color 0ms, transform 180ms var(--kick);
     }
 
     .otp-box:focus {
-      border-color: var(--cyber-blue);
-      box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.25);
-      background: rgba(15, 23, 42, 0.95);
+      border-color: var(--ink);
     }
 
-    .alert-banner {
-      padding: 10px 14px;
-      border-radius: 10px;
-      font-size: 12px;
-      margin-bottom: 16px;
-      display: none;
-      text-align: left;
+    .otp-box.filled {
+      transform: translate3d(0, -2px, 0);
+      border-color: var(--ink-3);
     }
 
-    .alert-banner.error {
-      background: rgba(239, 68, 68, 0.12);
-      border: 1px solid rgba(239, 68, 68, 0.3);
-      color: #fca5a5;
+    .otp.shake {
+      animation: shake 360ms var(--snap);
     }
 
-    .alert-banner.success {
-      background: rgba(16, 185, 129, 0.12);
-      border: 1px solid rgba(16, 185, 129, 0.3);
-      color: #6ee7b7;
+    @keyframes shake {
+      20% { transform: translateX(-6px); }
+      40% { transform: translateX(5px); }
+      60% { transform: translateX(-3px); }
+      80% { transform: translateX(2px); }
     }
 
-    .auth-footer {
-      margin-top: 24px;
-      text-align: center;
-      color: #64748b;
+    .twofa-links {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 20px;
+      font-family: var(--mono);
       font-size: 12px;
     }
 
-    .auth-footer a {
-      color: var(--cyber-blue);
-      text-decoration: none;
+    .twofa-links a {
+      color: var(--ink-3);
     }
 
-    .auth-footer a:hover {
-      text-decoration: underline;
+    .twofa-links a:hover {
+      color: var(--ink);
+    }
+
+    .card-foot {
+      margin-top: 36px;
+      padding-top: 18px;
+      border-top: 1px solid var(--line);
+      font-size: 12px;
+      color: var(--ink-3);
+    }
+
+    .card-foot a {
+      color: var(--ink-2);
+      border-bottom: 1px solid var(--line-hi);
+    }
+
+    .card-foot a:hover {
+      color: var(--ink);
+    }
+
+    .js [data-in] {
+      opacity: 0;
+    }
+
+    @media (max-width: 960px) {
+      .auth {
+        grid-template-columns: 1fr;
+      }
+
+      .side {
+        border-right: 0;
+        border-bottom: 1px solid var(--line);
+        padding-bottom: 28px;
+      }
+
+      .side-main {
+        padding: 40px 0 8px;
+      }
+
+      .feed,
+      .side-foot {
+        display: none;
+      }
+
+      .panel {
+        align-items: flex-start;
+        padding-top: 36px;
+        padding-bottom: 56px;
+      }
+    }
+
+    @media (max-width: 420px) {
+      .otp {
+        grid-template-columns: repeat(3, 1fr) 8px repeat(3, 1fr);
+        gap: 5px;
+      }
+
+      .otp-box {
+        height: 54px;
+        font-size: 22px;
+      }
     }
   </style>
+  <script>document.documentElement.classList.add('js');</script>
 </head>
 <body>
+  <div class="grain" aria-hidden="true"></div>
 
-  <div class="auth-container">
-    <!-- Brand Header -->
-    <header class="brand-header">
-      <a href="/" style="text-decoration:none;">
-        <div class="brand-shield">
-          <svg viewBox="0 0 24 24">
-            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
-            <path d="m9 12 2 2 4-4"/>
-          </svg>
-        </div>
-      </a>
-      <h1 class="brand-title">Sentinel<span>AI</span> Identity</h1>
-      <p class="brand-sub">Secure Cyber Operations & 2FA Protected Access</p>
-      <div class="sec-badge-row">
-        <span class="sec-pill">🔒 256-BIT TLS</span>
-        <span class="sec-pill green">🛡 2FA SECURED</span>
-        <span class="sec-pill">⚡ ZERO-KNOWLEDGE</span>
+  <div class="auth">
+    <!-- ============================ BRAND SIDE ============================ -->
+    <aside class="side">
+      <div class="side-field" aria-hidden="true"></div>
+
+      <div class="side-top" data-in>
+        <a href="/" class="wordmark" aria-label="SentinelAI home">
+          <span class="wordmark-glyph" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="square"><path d="M12 21s7-3.5 7-9V5l-7-2.5L5 5v7c0 5.5 7 9 7 9z"/><path d="M9 12l2 2 4-4"/></svg></span>
+          <span>SENTINEL<span class="wordmark-slash">/</span>AI</span>
+        </a>
+        <a href="/" class="side-back"><span>&larr;</span> Back to site</a>
       </div>
-    </header>
 
-    <!-- Main Auth Card -->
-    <main class="auth-card">
-      <div id="alert-box" class="alert-banner"></div>
+      <div class="side-main">
+        <span class="label label-accent" data-in>Operator access</span>
+        <h1 class="display side-title" data-in>Your console.<br><span class="dim">Your keys.</span></h1>
+        <p class="side-lead" data-in>Sign in to sync scan history, manage trusted domains and run the model studio. Two-factor is on by default.</p>
 
-      <!-- VIEW 1: Standard Credentials (Sign In / Register) -->
-      <section id="credentials-view">
-        <nav class="tab-nav">
-          <button class="tab-btn active" id="tab-login" onclick="switchTab('login')">Sign In</button>
-          <button class="tab-btn" id="tab-register" onclick="switchTab('register')">Create Account</button>
-        </nav>
-
-        <!-- Continue with Google Button -->
-        <button type="button" class="btn-google" id="btn-google" onclick="handleGoogleAuth()">
-          <svg viewBox="0 0 24 24">
-            <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-            <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-            <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
-            <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
-          </svg>
-          Continue with Google
-        </button>
-
-        <div class="or-divider">
-          <span>or secure email</span>
+        <div class="feed" data-in aria-hidden="true">
+          <div class="feed-head">
+            <span class="label">Live intercepts &middot; sample</span>
+            <i class="led"></i>
+          </div>
+          <div class="feed-list" id="feed-list"></div>
         </div>
+      </div>
 
-        <!-- LOGIN FORM -->
-        <form id="form-login" onsubmit="handleLoginSubmit(event)">
-          <div class="form-group">
-            <label class="form-label" for="login-email">Terminal Email</label>
-            <div class="input-wrap">
-              <span class="input-icon">✉</span>
-              <input id="login-email" class="form-input" type="email" placeholder="operator@sentinelai.security" required autocomplete="email">
-            </div>
+      <div class="side-foot" data-in>
+        <span class="chip">TLS 1.3</span>
+        <span class="chip">TOTP 2FA</span>
+        <span class="chip">Zero telemetry</span>
+      </div>
+    </aside>
+
+    <!-- ============================ FORM SIDE ============================ -->
+    <main class="panel">
+      <div class="card">
+        <div id="alert-box" class="alert" role="alert"></div>
+
+        <!-- VIEW 1: credentials -->
+        <section id="credentials-view">
+          <div class="card-head" data-in>
+            <h2 id="card-title">Welcome back.</h2>
+            <p id="card-sub">Sign in to the SentinelAI command center.</p>
           </div>
 
-          <div class="form-group">
-            <div class="form-label">
-              <label for="login-password">Master Key (Password)</label>
-              <a href="#" onclick="alert('Password reset link dispatched to terminal address.')" style="color:var(--cyber-blue); font-size:11px; text-decoration:none;">Forgot?</a>
-            </div>
-            <div class="input-wrap">
-              <span class="input-icon">🔒</span>
-              <input id="login-password" class="form-input" type="password" placeholder="••••••••••••" required autocomplete="current-password">
-              <button type="button" class="password-toggle" onclick="togglePasswordVisibility('login-password')">👁</button>
-            </div>
+          <nav class="tabs" id="tabs" data-mode="login" data-in>
+            <button class="tab-btn active" id="tab-login" type="button" onclick="switchTab('login')">Sign in</button>
+            <button class="tab-btn" id="tab-register" type="button" onclick="switchTab('register')">Create account</button>
+            <span class="tab-ink" aria-hidden="true"></span>
+          </nav>
+
+          <div data-in>
+            <button type="button" class="btn-google" id="btn-google" onclick="handleGoogleAuth()">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
+                <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
+              </svg>
+              Continue with Google
+            </button>
+
+            <div class="or">or with email</div>
           </div>
 
-          <button type="submit" class="btn-submit" id="btn-login-submit">
-            <span>Authenticate Terminal</span>
-            <span>→</span>
-          </button>
-
-          <button type="button" class="demo-helper-btn" onclick="fillDemoCredentials()">
-            <span>⚡ Quick Fill Demo Credentials (demo@sentinelai.security)</span>
-          </button>
-        </form>
-
-        <!-- REGISTER FORM -->
-        <form id="form-register" style="display:none;" onsubmit="handleRegisterSubmit(event)">
-          <div class="form-group">
-            <label class="form-label" for="reg-name">Security Operator Name</label>
-            <div class="input-wrap">
-              <span class="input-icon">👤</span>
-              <input id="reg-name" class="form-input" type="text" placeholder="Alex Hunter" required autocomplete="name">
-            </div>
-          </div>
-
-          <div class="form-group">
-            <label class="form-label" for="reg-email">Operator Work Email</label>
-            <div class="input-wrap">
-              <span class="input-icon">✉</span>
-              <input id="reg-email" class="form-input" type="email" placeholder="alex@company.com" required autocomplete="email">
-            </div>
-          </div>
-
-          <div class="form-group">
-            <label class="form-label" for="reg-password">Master Password</label>
-            <div class="input-wrap">
-              <span class="input-icon">🔒</span>
-              <input id="reg-password" class="form-input" type="password" placeholder="Minimum 8 characters" required oninput="evaluatePasswordStrength(this.value)" autocomplete="new-password">
-              <button type="button" class="password-toggle" onclick="togglePasswordVisibility('reg-password')">👁</button>
-            </div>
-            <div class="pwd-meter-wrap">
-              <div class="pwd-meter-bar">
-                <div id="pwd-fill" class="pwd-meter-fill"></div>
+          <!-- LOGIN FORM -->
+          <form id="form-login" onsubmit="handleLoginSubmit(event)" data-in>
+            <div class="field">
+              <label class="field-label" for="login-email">Email</label>
+              <div class="input-wrap">
+                <input id="login-email" class="form-input" type="email" placeholder="you@company.com" required autocomplete="email">
               </div>
+            </div>
+
+            <div class="field">
+              <div class="field-label">
+                <label for="login-password">Password</label>
+                <a href="#" onclick="event.preventDefault(); showAlert('Password reset link sent to your email address.', false)">Forgot?</a>
+              </div>
+              <div class="input-wrap">
+                <input id="login-password" class="form-input" type="password" placeholder="&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;" required autocomplete="current-password">
+                <button type="button" class="password-toggle" onclick="togglePasswordVisibility('login-password', this)">Show</button>
+              </div>
+            </div>
+
+            <button type="submit" class="btn btn-primary btn-submit" id="btn-login-submit">
+              <span>Sign in</span>
+              <span class="btn-arrow" aria-hidden="true">&rarr;</span>
+            </button>
+
+            <button type="button" class="demo-helper" onclick="fillDemoCredentials()">
+              Demo: fill <strong>demo@sentinelai.security</strong>
+            </button>
+          </form>
+
+          <!-- REGISTER FORM -->
+          <form id="form-register" style="display:none;" onsubmit="handleRegisterSubmit(event)">
+            <div class="field">
+              <label class="field-label" for="reg-name">Full name</label>
+              <div class="input-wrap">
+                <input id="reg-name" class="form-input" type="text" placeholder="Alex Hunter" required autocomplete="name">
+              </div>
+            </div>
+
+            <div class="field">
+              <label class="field-label" for="reg-email">Work email</label>
+              <div class="input-wrap">
+                <input id="reg-email" class="form-input" type="email" placeholder="alex@company.com" required autocomplete="email">
+              </div>
+            </div>
+
+            <div class="field">
+              <label class="field-label" for="reg-password">Password</label>
+              <div class="input-wrap">
+                <input id="reg-password" class="form-input" type="password" placeholder="At least 8 characters" required oninput="evaluatePasswordStrength(this.value)" autocomplete="new-password">
+                <button type="button" class="password-toggle" onclick="togglePasswordVisibility('reg-password', this)">Show</button>
+              </div>
+              <div class="pwd-meter" id="pwd-meter" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
               <div class="pwd-meter-label">
-                <span id="pwd-text">Password Entropy: None</span>
+                <span id="pwd-text">Strength: none</span>
                 <span id="pwd-score">0 / 4</span>
               </div>
             </div>
-          </div>
 
-          <!-- 2FA Checkbox -->
-          <div class="two-factor-box">
-            <div class="two-factor-info">
-              <span style="font-size: 20px;">🛡</span>
+            <div class="twofa-row">
               <div>
-                <strong>Enforce Two-Factor Authentication (2FA)</strong>
-                <small>Requires a 6-digit TOTP code on every sign-in</small>
+                <strong>Two-factor authentication</strong>
+                <small>Ask for a 6-digit code on every sign-in</small>
               </div>
+              <label class="switch" aria-label="Enable two-factor authentication">
+                <input type="checkbox" id="reg-2fa-toggle" checked>
+                <span class="slider"></span>
+              </label>
             </div>
-            <label class="switch">
-              <input type="checkbox" id="reg-2fa-toggle" checked>
-              <span class="slider"></span>
-            </label>
-          </div>
 
-          <button type="submit" class="btn-submit" id="btn-reg-submit">
-            <span>Initialize Security Account</span>
-            <span>→</span>
-          </button>
-        </form>
-      </section>
-
-      <!-- VIEW 2: 2FA Verification Screen -->
-      <section id="two-fa-view" class="two-fa-screen">
-        <div class="two-fa-icon">
-          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
-            <path d="m9 12 2 2 4-4"/>
-          </svg>
-        </div>
-        <h2 style="font-size:20px; margin:0 0 8px 0; color:#ffffff;">Two-Factor Authentication</h2>
-        <p style="font-size:13px; color:var(--cyber-muted); margin:0 0 20px 0;">
-          A 6-digit verification code has been dispatched to your authenticator security app.
-        </p>
-
-        <form id="form-2fa" onsubmit="handle2FASubmit(event)">
-          <div class="otp-inputs">
-            <input class="otp-box" type="text" maxlength="1" pattern="[0-9]" inputmode="numeric" autofocus oninput="otpNext(this, 0)" onkeydown="otpBack(this, event, 0)">
-            <input class="otp-box" type="text" maxlength="1" pattern="[0-9]" inputmode="numeric" oninput="otpNext(this, 1)" onkeydown="otpBack(this, event, 1)">
-            <input class="otp-box" type="text" maxlength="1" pattern="[0-9]" inputmode="numeric" oninput="otpNext(this, 2)" onkeydown="otpBack(this, event, 2)">
-            <input class="otp-box" type="text" maxlength="1" pattern="[0-9]" inputmode="numeric" oninput="otpNext(this, 3)" onkeydown="otpBack(this, event, 3)">
-            <input class="otp-box" type="text" maxlength="1" pattern="[0-9]" inputmode="numeric" oninput="otpNext(this, 4)" onkeydown="otpBack(this, event, 4)">
-            <input class="otp-box" type="text" maxlength="1" pattern="[0-9]" inputmode="numeric" oninput="otpNext(this, 5)" onkeydown="otpBack(this, event, 5)">
-          </div>
-
-          <div id="demo-2fa-pill-wrap" style="margin-bottom:18px;">
-            <button type="button" id="btn-fill-2fa" class="demo-helper-btn" onclick="fillAuto2FACode()">
-              <span>⚡ Insert Generated 2FA Code (<strong id="active-2fa-code">------</strong>)</span>
+            <button type="submit" class="btn btn-primary btn-submit" id="btn-reg-submit">
+              <span>Create account</span>
+              <span class="btn-arrow" aria-hidden="true">&rarr;</span>
             </button>
+          </form>
+        </section>
+
+        <!-- VIEW 2: 2FA -->
+        <section id="two-fa-view" class="two-fa-screen">
+          <div class="card-head twofa-head">
+            <span class="label label-accent">Step 2 of 2</span>
+            <h2>Enter your code.</h2>
+            <p>We sent a 6-digit code to your authenticator app. You can also paste it.</p>
           </div>
 
-          <button type="submit" class="btn-submit" id="btn-verify-2fa">
-            <span>Verify & Enter Command Center</span>
-            <span>✓</span>
-          </button>
-        </form>
+          <form id="form-2fa" onsubmit="handle2FASubmit(event)">
+            <div class="otp" id="otp">
+              <input class="otp-box" type="text" maxlength="1" pattern="[0-9]" inputmode="numeric" autocomplete="one-time-code" aria-label="Digit 1" oninput="otpNext(this, 0)" onkeydown="otpBack(this, event, 0)">
+              <input class="otp-box" type="text" maxlength="1" pattern="[0-9]" inputmode="numeric" aria-label="Digit 2" oninput="otpNext(this, 1)" onkeydown="otpBack(this, event, 1)">
+              <input class="otp-box" type="text" maxlength="1" pattern="[0-9]" inputmode="numeric" aria-label="Digit 3" oninput="otpNext(this, 2)" onkeydown="otpBack(this, event, 2)">
+              <span class="otp-sep" aria-hidden="true"></span>
+              <input class="otp-box" type="text" maxlength="1" pattern="[0-9]" inputmode="numeric" aria-label="Digit 4" oninput="otpNext(this, 3)" onkeydown="otpBack(this, event, 3)">
+              <input class="otp-box" type="text" maxlength="1" pattern="[0-9]" inputmode="numeric" aria-label="Digit 5" oninput="otpNext(this, 4)" onkeydown="otpBack(this, event, 4)">
+              <input class="otp-box" type="text" maxlength="1" pattern="[0-9]" inputmode="numeric" aria-label="Digit 6" oninput="otpNext(this, 5)" onkeydown="otpBack(this, event, 5)">
+            </div>
 
-        <div style="margin-top:18px; display:flex; justify-content:space-between; font-size:12px;">
-          <a href="#" onclick="backToCredentials()" style="color:#94a3b8; text-decoration:none;">← Back to Credentials</a>
-          <a href="#" onclick="alert('A fresh 6-digit verification challenge has been renewed.')" style="color:var(--cyber-blue); text-decoration:none;">Resend Code</a>
-        </div>
-      </section>
+            <div id="demo-2fa-pill-wrap" style="margin-bottom:18px;">
+              <button type="button" id="btn-fill-2fa" class="demo-helper" onclick="fillAuto2FACode()">
+                Demo: insert code <strong id="active-2fa-code">------</strong>
+              </button>
+            </div>
+
+            <button type="submit" class="btn btn-primary btn-submit" id="btn-verify-2fa">
+              <span>Verify &amp; continue</span>
+              <span class="btn-arrow" aria-hidden="true">&rarr;</span>
+            </button>
+          </form>
+
+          <div class="twofa-links">
+            <a href="#" onclick="event.preventDefault(); backToCredentials()">&larr; Back</a>
+            <a href="#" onclick="event.preventDefault(); showAlert('A fresh 6-digit code has been issued.', false)">Resend code</a>
+          </div>
+        </section>
+
+        <p class="card-foot" data-in>
+          Protected by SentinelAI. <a href="/">Home</a> &middot; <a href="/dashboard/">Command center</a> &middot; <a href="/demo.html">Testbench</a>
+        </p>
+      </div>
     </main>
-
-    <footer class="auth-footer">
-      <p>Protected by SentinelAI Autonomous Heuristic Shield · <a href="/">Return to Home</a> · <a href="/dashboard/">Command Center</a></p>
-    </footer>
   </div>
 
+  <script src="/assets/vendor/gsap.min.js"></script>
   <script>
+    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const canAnimate = typeof window.gsap !== 'undefined' && !reducedMotion;
+
+    // --- Entrance ---
+    (function intro() {
+      const items = document.querySelectorAll('[data-in]');
+      if (!canAnimate) { items.forEach(el => el.style.opacity = 1); return; }
+      gsap.fromTo(items, { opacity: 0, y: 14 }, { opacity: 1, y: 0, duration: 0.9, ease: 'expo.out', stagger: 0.045, delay: 0.05 });
+    })();
+
+    // --- Decorative intercept feed (sample data, not live) ---
+    (function feed() {
+      const list = document.getElementById('feed-list');
+      if (!list) return;
+      const rows = [
+        ['paypa1-account-verify.co', 'bad', 'BLOCK'],
+        ['github.com', 'ok', 'CLEAR'],
+        ['appleid.apple.com-locked.top', 'bad', 'BLOCK'],
+        ['docs.google.com', 'ok', 'CLEAR'],
+        ['bit.ly/3xQz-reset', 'warn', 'SUSP'],
+        ['chase-secure-login.xyz', 'bad', 'BLOCK'],
+        ['news.ycombinator.com', 'ok', 'CLEAR'],
+        ['xn--pple-43d.com', 'bad', 'GLYPH'],
+        ['steamcommunity-gift.ru', 'bad', 'BLOCK'],
+        ['linear.app', 'ok', 'CLEAR']
+      ];
+      let i = 0;
+      const stamp = () => new Date().toTimeString().slice(0, 8);
+      const make = () => {
+        const [host, cls, tag] = rows[i++ % rows.length];
+        const row = document.createElement('div');
+        row.className = 'feed-row';
+        const t = document.createElement('time'); t.textContent = stamp();
+        const h = document.createElement('span'); h.textContent = host;
+        const b = document.createElement('b'); b.className = cls; b.textContent = tag;
+        row.append(t, h, b);
+        return row;
+      };
+      for (let k = 0; k < 4; k++) list.appendChild(make());
+      if (reducedMotion) return;
+      setInterval(() => {
+        const row = make();
+        list.prepend(row);
+        if (canAnimate) {
+          gsap.fromTo(row, { height: 0, opacity: 0 }, { height: 42, opacity: 1, duration: 0.6, ease: 'expo.out' });
+        }
+        while (list.children.length > 6) list.lastElementChild.remove();
+      }, 2200);
+    })();
+
     // --- State Management ---
     let pendingTempToken = "";
     let active2FACode = "";
@@ -725,14 +898,18 @@
     function showAlert(msg, isError = true) {
       const el = document.getElementById('alert-box');
       el.textContent = msg;
-      el.className = 'alert-banner ' + (isError ? 'error' : 'success');
-      el.style.display = 'block';
+      el.className = 'alert ' + (isError ? 'error' : 'success');
+      if (canAnimate) gsap.fromTo(el, { opacity: 0, x: -6 }, { opacity: 1, x: 0, duration: 0.5, ease: 'expo.out' });
     }
 
     function clearAlert() {
       const el = document.getElementById('alert-box');
-      el.style.display = 'none';
+      el.className = 'alert';
       el.textContent = '';
+    }
+
+    function swapIn(el) {
+      if (canAnimate) gsap.fromTo(el, { opacity: 0, y: 8 }, { opacity: 1, y: 0, duration: 0.55, ease: 'expo.out' });
     }
 
     function switchTab(mode) {
@@ -741,23 +918,31 @@
       const regTab = document.getElementById('tab-register');
       const loginForm = document.getElementById('form-login');
       const regForm = document.getElementById('form-register');
+      document.getElementById('tabs').dataset.mode = mode;
 
       if (mode === 'login') {
         loginTab.classList.add('active');
         regTab.classList.remove('active');
         loginForm.style.display = 'block';
         regForm.style.display = 'none';
+        document.getElementById('card-title').textContent = 'Welcome back.';
+        document.getElementById('card-sub').textContent = 'Sign in to the SentinelAI command center.';
+        swapIn(loginForm);
       } else {
         regTab.classList.add('active');
         loginTab.classList.remove('active');
         regForm.style.display = 'block';
         loginForm.style.display = 'none';
+        document.getElementById('card-title').textContent = 'Create your account.';
+        document.getElementById('card-sub').textContent = 'Free forever for personal use. Takes 30 seconds.';
+        swapIn(regForm);
       }
     }
 
-    function togglePasswordVisibility(id) {
+    function togglePasswordVisibility(id, btn) {
       const input = document.getElementById(id);
       input.type = input.type === 'password' ? 'text' : 'password';
+      if (btn) btn.textContent = input.type === 'password' ? 'Show' : 'Hide';
     }
 
     function fillDemoCredentials() {
@@ -772,17 +957,24 @@
       if (/[0-9]/.test(password)) score++;
       if (/[^A-Za-z0-9]/.test(password)) score++;
 
-      const fill = document.getElementById('pwd-fill');
+      const segments = document.querySelectorAll('#pwd-meter i');
       const text = document.getElementById('pwd-text');
       const scoreEl = document.getElementById('pwd-score');
 
-      const colors = ['#ef4444', '#f59e0b', '#38bdf8', '#10b981'];
-      const labels = ['Weak (Add length)', 'Fair (Add uppercase)', 'Good (Add numbers)', 'Military Grade (High Entropy)'];
+      const colors = ['var(--danger)', 'var(--warn)', 'var(--ink)', 'var(--safe)'];
+      const labels = ['Weak — add length', 'Fair — add uppercase', 'Good — add numbers', 'Strong'];
+      const color = colors[Math.max(0, score - 1)];
 
-      fill.style.width = (score * 25) + '%';
-      fill.style.backgroundColor = colors[Math.max(0, score - 1)] || '#ef4444';
-      text.textContent = 'Entropy: ' + (labels[score - 1] || 'Too short');
+      segments.forEach((seg, i) => {
+        seg.style.backgroundColor = i < score ? color : '';
+      });
+      text.textContent = 'Strength: ' + (labels[score - 1] || (password ? 'too short' : 'none'));
       scoreEl.textContent = score + ' / 4';
+    }
+
+    function setBusy(id, busy) {
+      const btn = document.getElementById(id);
+      if (btn) btn.classList.toggle('is-busy', busy);
     }
 
     // --- Google OAuth Simulation & Identity Provider ---
@@ -805,7 +997,7 @@
         if (res.ok) {
           const data = await res.json();
           saveSession(data.token, data.user);
-          showAlert("Google Account Verified! Welcome, " + data.user.name + " (Redirecting...)", false);
+          showAlert("Google account verified. Welcome, " + data.user.name + ". Redirecting…", false);
           setTimeout(() => { window.location.href = '/dashboard/'; }, 1000);
           return;
         }
@@ -815,7 +1007,7 @@
 
       // Standalone Edge / Vercel fallback
       saveSession("demo_google_session_" + Date.now(), googleUser);
-      showAlert("Google Account Verified! Welcome, " + googleUser.name + " (Redirecting...)", false);
+      showAlert("Google account verified. Welcome, " + googleUser.name + ". Redirecting…", false);
       setTimeout(() => { window.location.href = '/dashboard/'; }, 1000);
     }
 
@@ -823,6 +1015,7 @@
     async function handleRegisterSubmit(e) {
       e.preventDefault();
       clearAlert();
+      setBusy('btn-reg-submit', true);
 
       const name = document.getElementById('reg-name').value.trim();
       const email = document.getElementById('reg-email').value.trim();
@@ -843,7 +1036,7 @@
 
         const data = await res.json();
         if (!res.ok) {
-          showAlert(data.detail || "Registration failed. Please check your credentials.");
+          showAlert(data.detail || "Registration failed. Please check your details.");
           return;
         }
 
@@ -852,10 +1045,10 @@
           active2FACode = data.dev_code_hint || "123456";
           document.getElementById('active-2fa-code').textContent = active2FACode;
           show2FAScreen();
-          showAlert("Account created! 2FA code generated: " + active2FACode, false);
+          showAlert("Account created. 2FA code generated: " + active2FACode, false);
         } else {
           saveSession(data.token, data.user);
-          showAlert("Account created successfully! Redirecting...", false);
+          showAlert("Account created. Redirecting…", false);
           setTimeout(() => { window.location.href = '/dashboard/'; }, 1000);
         }
       } catch (err) {
@@ -864,7 +1057,9 @@
         active2FACode = "772910";
         document.getElementById('active-2fa-code').textContent = active2FACode;
         show2FAScreen();
-        showAlert("Account created! 2FA verification challenge ready: " + active2FACode, false);
+        showAlert("Account created. Demo 2FA code: " + active2FACode, false);
+      } finally {
+        setBusy('btn-reg-submit', false);
       }
     }
 
@@ -872,6 +1067,7 @@
     async function handleLoginSubmit(e) {
       e.preventDefault();
       clearAlert();
+      setBusy('btn-login-submit', true);
 
       const email = document.getElementById('login-email').value.trim();
       const password = document.getElementById('login-password').value;
@@ -894,10 +1090,10 @@
           active2FACode = data.dev_code_hint || "123456";
           document.getElementById('active-2fa-code').textContent = active2FACode;
           show2FAScreen();
-          showAlert("2FA Security Check: Code sent to your device (" + active2FACode + ")", false);
+          showAlert("Code sent to your device (" + active2FACode + ")", false);
         } else {
           saveSession(data.token, data.user);
-          showAlert("Access Granted! Welcome back " + data.user.name + "...", false);
+          showAlert("Signed in. Welcome back, " + data.user.name + ".", false);
           setTimeout(() => { window.location.href = '/dashboard/'; }, 1000);
         }
       } catch (err) {
@@ -906,14 +1102,21 @@
         active2FACode = "593019";
         document.getElementById('active-2fa-code').textContent = active2FACode;
         show2FAScreen();
-        showAlert("Security Challenge Dispatched (Demo 2FA Code: " + active2FACode + ")", false);
+        showAlert("Demo 2FA code: " + active2FACode, false);
+      } finally {
+        setBusy('btn-login-submit', false);
       }
     }
 
     // --- 2FA Verification Flow ---
     function show2FAScreen() {
       document.getElementById('credentials-view').style.display = 'none';
-      document.getElementById('two-fa-view').style.display = 'block';
+      const view = document.getElementById('two-fa-view');
+      view.style.display = 'block';
+      if (canAnimate) {
+        gsap.fromTo(view.querySelectorAll('.card-head > *, .otp-box, #demo-2fa-pill-wrap, #btn-verify-2fa, .twofa-links'),
+          { opacity: 0, y: 10 }, { opacity: 1, y: 0, duration: 0.6, ease: 'expo.out', stagger: 0.03 });
+      }
       const firstInput = document.querySelector('.otp-box');
       if (firstInput) firstInput.focus();
     }
@@ -921,49 +1124,75 @@
     function backToCredentials() {
       document.getElementById('credentials-view').style.display = 'block';
       document.getElementById('two-fa-view').style.display = 'none';
+      swapIn(document.getElementById('credentials-view'));
       clearAlert();
     }
 
+    function otpBoxes() {
+      return document.querySelectorAll('.otp-box');
+    }
+
+    function syncFilled() {
+      otpBoxes().forEach(b => b.classList.toggle('filled', !!b.value));
+    }
+
     function otpNext(el, idx) {
+      el.value = el.value.replace(/\D/g, '').slice(-1);
       if (el.value.length === 1) {
-        const inputs = document.querySelectorAll('.otp-box');
+        const inputs = otpBoxes();
         if (idx < inputs.length - 1) {
           inputs[idx + 1].focus();
         }
       }
+      syncFilled();
     }
 
     function otpBack(el, e, idx) {
       if (e.key === 'Backspace' && !el.value) {
-        const inputs = document.querySelectorAll('.otp-box');
+        const inputs = otpBoxes();
         if (idx > 0) {
           inputs[idx - 1].focus();
         }
       }
     }
 
+    // Paste a full code into any box
+    document.getElementById('otp').addEventListener('paste', (e) => {
+      const digits = (e.clipboardData || window.clipboardData).getData('text').replace(/\D/g, '').slice(0, 6);
+      if (!digits) return;
+      e.preventDefault();
+      const inputs = otpBoxes();
+      inputs.forEach((b, i) => { b.value = digits[i] || ''; });
+      inputs[Math.min(digits.length, inputs.length) - 1].focus();
+      syncFilled();
+    });
+
     function fillAuto2FACode() {
-      const inputs = document.querySelectorAll('.otp-box');
+      const inputs = otpBoxes();
       const code = active2FACode || "123456";
       for (let i = 0; i < inputs.length; i++) {
         inputs[i].value = code[i] || '';
       }
       inputs[inputs.length - 1].focus();
+      syncFilled();
     }
 
     async function handle2FASubmit(e) {
       e.preventDefault();
       clearAlert();
 
-      const inputs = document.querySelectorAll('.otp-box');
+      const inputs = otpBoxes();
       let code = "";
       inputs.forEach(i => code += i.value);
 
       if (code.length !== 6) {
-        showAlert("Please enter all 6 verification digits.");
+        const otp = document.getElementById('otp');
+        otp.classList.remove('shake'); void otp.offsetWidth; otp.classList.add('shake');
+        showAlert("Enter all 6 digits.");
         return;
       }
 
+      setBusy('btn-verify-2fa', true);
       try {
         const res = await fetch('/api/auth/2fa/verify', {
           method: 'POST',
@@ -976,12 +1205,12 @@
 
         const data = await res.json();
         if (!res.ok) {
-          showAlert(data.detail || "Invalid 2FA code. Please check your authenticator.");
+          showAlert(data.detail || "Invalid code. Check your authenticator app.");
           return;
         }
 
         saveSession(data.token, data.user);
-        showAlert("2FA Verified! Clearance Confirmed. Redirecting...", false);
+        showAlert("Verified. Redirecting…", false);
         setTimeout(() => { window.location.href = '/dashboard/'; }, 1000);
       } catch (err) {
         // Fallback for standalone/mock
@@ -992,8 +1221,10 @@
           two_factor_enabled: true
         };
         saveSession("mock_verified_session_" + Date.now(), fallbackUser);
-        showAlert("2FA Verified! Clearance Confirmed. Redirecting...", false);
+        showAlert("Verified. Redirecting…", false);
         setTimeout(() => { window.location.href = '/dashboard/'; }, 1000);
+      } finally {
+        setBusy('btn-verify-2fa', false);
       }
     }
 

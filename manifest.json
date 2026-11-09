@@ -22,6 +22,7 @@
         "<all_urls>"
       ],
       "js": [
+        "assets/js/block-page.js",
         "content.js"
       ],
       "run_at": "document_idle"

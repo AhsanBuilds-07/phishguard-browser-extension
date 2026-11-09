@@ -3,578 +3,838 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>SentinelAI - Live Interactive Demo & AI Model Testbench</title>
-  <link rel="stylesheet" href="popup/popup.css">
+  <meta name="theme-color" content="#08090a">
+  <title>Testbench — SentinelAI</title>
+  <link rel="icon" href="/icons/icon48.png" type="image/png">
+  <link rel="stylesheet" href="/assets/css/brand.css">
   <style>
-    /* Demo page styling */
-    body {
-      width: 100% !important;
-      min-height: 100vh;
-      background: radial-gradient(circle at top right, #1e293b, #0b0f19 80%);
-      color: #f8fafc;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      padding: 30px 20px;
-      margin: 0;
-      box-sizing: border-box;
-      user-select: auto !important;
+    .bar {
+      border-bottom: 1px solid var(--line);
     }
 
-    .demo-container {
-      max-width: 1100px;
-      margin: 0 auto;
-      display: flex;
-      flex-direction: column;
-      gap: 28px;
-    }
-
-    .demo-header {
+    .bar-inner {
+      height: 64px;
       display: flex;
       align-items: center;
       justify-content: space-between;
-      border-bottom: 1px solid #1e293b;
-      padding-bottom: 20px;
+      gap: 24px;
     }
 
-    .demo-brand {
+    .bar-links {
       display: flex;
       align-items: center;
-      gap: 14px;
+      gap: 24px;
+      font-size: 14px;
+      color: var(--ink-2);
     }
 
-    .demo-logo {
-      width: 44px;
-      height: 44px;
-      background: linear-gradient(135deg, #0284c7 0%, #2563eb 100%);
-      border-radius: 12px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: #ffffff;
-      box-shadow: 0 4px 15px rgba(2, 132, 199, 0.4);
+    .bar-links a:hover {
+      color: var(--ink);
     }
 
-    .demo-title h1 {
-      margin: 0;
-      font-size: 24px;
-      font-weight: 800;
-      letter-spacing: -0.02em;
-    }
-
-    .demo-title p {
-      margin: 4px 0 0 0;
-      font-size: 13px;
-      color: #94a3b8;
-    }
-
-    .demo-badge-banner {
-      background: rgba(56, 189, 248, 0.1);
-      border: 1px solid rgba(56, 189, 248, 0.3);
-      padding: 6px 14px;
-      border-radius: 9999px;
-      color: #38bdf8;
-      font-size: 12px;
-      font-weight: 700;
-    }
-
-    .demo-grid {
+    .head {
       display: grid;
-      grid-template-columns: 1.2fr 0.8fr;
-      gap: 28px;
+      grid-template-columns: minmax(0, 1fr) auto;
+      align-items: end;
+      gap: 32px;
+      padding: 64px 0 40px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .head h1 {
+      margin-top: 18px;
+      font-size: clamp(40px, 6vw, 84px);
+    }
+
+    .head h1 .dim {
+      color: var(--ink-4);
+    }
+
+    .head p {
+      max-width: 380px;
+      color: var(--ink-2);
+      font-size: 15px;
+    }
+
+    .bench {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 420px;
+      gap: 48px;
+      padding: 40px 0 96px;
       align-items: start;
     }
 
-    @media (max-width: 860px) {
-      .demo-grid {
-        grid-template-columns: 1fr;
-      }
-    }
+    /* Input */
 
-    /* Left Control Panel */
-    .control-card {
-      background: #111827;
-      border: 1px solid #1f293d;
-      border-radius: 16px;
-      padding: 24px;
-      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+    .probe {
       display: flex;
-      flex-direction: column;
-      gap: 20px;
+      border: 1px solid var(--line-hi);
+      background: var(--card);
     }
 
-    .section-title {
-      font-size: 14px;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-      color: #38bdf8;
-      display: flex;
-      align-items: center;
-      gap: 8px;
+    .probe:focus-within {
+      border-color: var(--ink-2);
+      box-shadow: inset 2px 0 0 var(--accent);
     }
 
-    .url-input-wrap {
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-    }
-
-    .url-input-wrap label {
-      font-size: 12px;
-      font-weight: 600;
-      color: #94a3b8;
-    }
-
-    .input-row {
-      display: flex;
-      gap: 10px;
-    }
-
-    .input-box {
+    .probe input {
       flex: 1;
-      background: #0b0f19;
-      border: 1px solid #334155;
-      border-radius: 10px;
-      padding: 12px 14px;
-      color: #ffffff;
-      font-size: 13px;
-      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-      outline: none;
-      transition: border-color 0.2s;
+      min-width: 0;
+      height: 60px;
+      padding: 0 18px;
+      background: transparent;
+      border: 0;
+      outline: 0;
+      font-family: var(--mono);
+      font-size: 15px;
+      color: var(--ink);
     }
 
-    .input-box:focus {
-      border-color: #38bdf8;
-      box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.2);
+    .probe .btn {
+      height: auto;
     }
 
-    .btn-evaluate {
-      background: #2563eb;
-      color: #ffffff;
-      border: none;
-      border-radius: 10px;
-      padding: 0 20px;
-      font-size: 13px;
-      font-weight: 700;
-      cursor: pointer;
-      transition: background 0.2s;
-    }
-
-    .btn-evaluate:hover {
-      background: #1d4ed8;
-    }
-
-    /* Test Case Buttons */
-    .presets-wrap {
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-    }
-
-    .preset-chips {
+    .presets {
       display: flex;
       flex-wrap: wrap;
-      gap: 8px;
+      gap: 6px;
+      margin-top: 14px;
     }
 
-    .chip {
-      background: rgba(30, 41, 59, 0.8);
-      border: 1px solid #334155;
-      color: #cbd5e1;
-      padding: 7px 12px;
-      border-radius: 8px;
+    .preset {
+      height: 32px;
+      padding: 0 12px;
+      border: 1px solid var(--line);
+      font-family: var(--mono);
       font-size: 12px;
+      color: var(--ink-2);
+      transition: border-color 0ms, color 120ms linear, transform 50ms linear;
+    }
+
+    .preset:hover {
+      border-color: var(--ink-3);
+      color: var(--ink);
+    }
+
+    .preset:active {
+      transform: scale(0.96);
+    }
+
+    .preset.is-current {
+      border-color: var(--ink);
+      color: var(--ink);
+    }
+
+    .preset b {
+      font-weight: 400;
+      margin-right: 6px;
+      color: var(--ink-4);
+    }
+
+    .preset[data-bad] b {
+      color: var(--danger);
+    }
+
+    /* Verdict strip */
+
+    .strip {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 140px 140px;
+      margin-top: 36px;
+      border: 1px solid var(--line);
+    }
+
+    .strip > div {
+      padding: 20px 20px 18px;
+      min-width: 0;
+    }
+
+    .strip > div + div {
+      border-left: 1px solid var(--line);
+    }
+
+    .strip-host {
+      display: block;
+      margin-top: 8px;
+      font-family: var(--mono);
+      font-size: 13px;
+      color: var(--ink-2);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .verdict-word {
+      display: inline-block;
+      margin-top: 12px;
+      font-family: var(--mono);
+      font-weight: 800;
+      font-size: 40px;
+      line-height: 0.95;
+      letter-spacing: -0.055em;
+    }
+
+    .verdict-word[data-tone="warn"] { color: var(--warn); }
+
+    .verdict-word[data-tone="danger"] {
+      background: var(--danger);
+      color: var(--canvas);
+      padding: 3px 7px 2px 5px;
+      margin-left: -1px;
+    }
+
+    .big-num {
+      display: block;
+      margin-top: 16px;
+      font-family: var(--sans);
       font-weight: 600;
-      cursor: pointer;
-      transition: all 0.15s;
+      font-size: 52px;
+      line-height: 0.85;
+      letter-spacing: -0.05em;
     }
 
-    .chip:hover {
-      background: #1e293b;
-      border-color: #38bdf8;
-      color: #ffffff;
+    .big-num small {
+      font-size: 13px;
+      font-weight: 400;
+      letter-spacing: 0;
+      color: var(--ink-3);
+      margin-left: 2px;
     }
 
-    .chip.chip-phish {
-      border-color: rgba(239, 68, 68, 0.35);
-      color: #fca5a5;
-    }
-    .chip.chip-phish:hover {
-      background: rgba(239, 68, 68, 0.2);
-      border-color: #ef4444;
-      color: #ffffff;
+    .summary {
+      padding: 16px 20px;
+      border: 1px solid var(--line);
+      border-top: 0;
+      color: var(--ink-2);
+      font-size: 14px;
     }
 
-    /* Extracted Feature Table */
-    .feature-matrix-table {
+    /* Section titles */
+
+    .sec {
+      margin-top: 48px;
+    }
+
+    .sec-hd {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      padding-bottom: 10px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .sec-hd h2 {
+      font-family: var(--mono);
+      font-weight: 800;
+      font-size: 14px;
+      letter-spacing: -0.01em;
+      text-transform: uppercase;
+    }
+
+    .sec-hd span {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--ink-3);
+    }
+
+    /* Feature vector */
+
+    .vec {
       width: 100%;
       border-collapse: collapse;
-      font-size: 12px;
-      margin-top: 6px;
-    }
-
-    .feature-matrix-table th {
-      text-align: left;
-      padding: 8px 10px;
-      background: #0f172a;
-      color: #94a3b8;
-      font-size: 11px;
-      text-transform: uppercase;
-      letter-spacing: 0.04em;
-      border-bottom: 1px solid #1e293b;
-    }
-
-    .feature-matrix-table td {
-      padding: 8px 10px;
-      border-bottom: 1px solid #1e293b;
-      color: #cbd5e1;
-    }
-
-    .val-highlight {
-      font-family: ui-monospace, SFMono-Regular, monospace;
-      font-weight: 700;
-      color: #38bdf8;
-    }
-
-    .val-danger {
-      color: #f87171 !important;
-    }
-
-    /* Right Simulator Column */
-    .simulator-wrap {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 16px;
-    }
-
-    .simulator-label {
-      font-size: 12px;
-      font-weight: 700;
-      color: #94a3b8;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-    }
-
-    .popup-frame-border {
-      background: #0b0f19;
-      border: 2px solid #28354f;
-      border-radius: 18px;
-      overflow: hidden;
-      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6), 0 0 25px rgba(56, 189, 248, 0.1);
-      width: 360px;
-    }
-
-    .trigger-overlay-btn {
-      width: 360px;
-      background: linear-gradient(135deg, #ef4444 0%, #b91c1c 100%);
-      color: #ffffff;
-      border: none;
-      padding: 12px 18px;
-      border-radius: 12px;
+      table-layout: fixed;
       font-size: 13px;
+    }
+
+    .vec td {
+      padding: 10px 0;
+      border-bottom: 1px solid var(--line);
+      vertical-align: baseline;
+    }
+
+    .vec .i {
+      width: 36px;
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--ink-4);
+    }
+
+    .vec .k {
+      font-family: var(--mono);
+      font-size: 12px;
+      color: var(--ink-2);
+    }
+
+    .vec .v {
+      width: 120px;
+      text-align: right;
+      font-family: var(--sans);
+      font-weight: 600;
+      font-size: 15px;
+    }
+
+    .vec .s {
+      width: 92px;
+      text-align: right;
+      font-family: var(--mono);
+      font-size: 10px;
+      letter-spacing: 0.08em;
+      color: var(--ink-4);
+    }
+
+    .vec tr.flag .k,
+    .vec tr.flag .i {
+      color: var(--ink);
+    }
+
+    .vec tr.flag .s {
+      color: var(--danger);
+    }
+
+    .vec tr {
+      transition: background-color 0ms;
+    }
+
+    .vec tr:hover td {
+      border-bottom-color: var(--line-hi);
+    }
+
+    /* Story */
+
+    .story {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0;
+      border: 1px solid var(--line);
+      border-top: 0;
+    }
+
+    .story > div {
+      padding: 18px 20px;
+    }
+
+    .story > div + div {
+      border-left: 1px solid var(--line);
+    }
+
+    .story h3 {
+      font-family: var(--mono);
+      font-weight: 400;
+      font-size: 11px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--ink-3);
+      margin-bottom: 10px;
+    }
+
+    .story p {
+      font-size: 14px;
+      color: var(--ink);
+    }
+
+    .story ul li {
+      position: relative;
+      padding: 6px 0 6px 18px;
+      font-size: 13px;
+      color: var(--ink-2);
+      border-top: 1px solid var(--line);
+    }
+
+    .story ul li:first-child {
+      border-top: 0;
+    }
+
+    .story ul li::before {
+      content: "\2192";
+      position: absolute;
+      left: 0;
+      font-family: var(--mono);
+      color: var(--ink-4);
+    }
+
+    .coach {
+      margin-top: 14px;
+      padding: 14px 16px;
+      border-left: 2px solid var(--accent);
+      background: var(--card);
+      font-size: 14px;
+      color: var(--ink-2);
+    }
+
+    .coach b {
+      font-family: var(--mono);
       font-weight: 800;
-      cursor: pointer;
+      font-size: 11px;
+      letter-spacing: 0.1em;
+      color: var(--ink);
+      margin-right: 8px;
+    }
+
+    /* Right: device */
+
+    .device {
+      position: sticky;
+      top: 24px;
+    }
+
+    .device .label {
+      display: block;
+      margin-bottom: 12px;
+    }
+
+    .browser {
+      border: 1px solid var(--line-hi);
+      background: var(--card);
+    }
+
+    .browser-bar {
       display: flex;
       align-items: center;
-      justify-content: center;
-      gap: 8px;
-      box-shadow: 0 4px 15px rgba(239, 68, 68, 0.4);
-      transition: all 0.2s;
+      gap: 10px;
+      height: 44px;
+      padding: 0 10px 0 12px;
+      border-bottom: 1px solid var(--line);
     }
 
-    .trigger-overlay-btn:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 6px 20px rgba(239, 68, 68, 0.6);
+    .browser-dots {
+      display: flex;
+      gap: 5px;
     }
-  </style>
-</head>
-<body>
 
-  <div class="demo-container">
-    <!-- Header -->
-    <header class="demo-header">
-      <div class="demo-brand">
-        <div class="demo-logo">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
-            <path d="M9 12l2 2 4-4"/>
-          </svg>
-        </div>
-        <div class="demo-title">
-          <h1>SentinelAI: Phishing & Scam Link Shield</h1>
-          <p>Live Interactive Testbench & Machine Learning Inference Simulator (Manifest V3)</p>
-        </div>
-      </div>
-      <div class="demo-badge-banner">Live On-Device AI Engine</div>
-    </header>
+    .browser-dots i {
+      width: 8px;
+      height: 8px;
+      border: 1px solid var(--line-hi);
+    }
 
-    <!-- Main Grid -->
-    <div class="demo-grid">
-      <!-- Left: Interactive Controls -->
-      <div class="control-card">
-        <div class="section-title">
-          <span>⚡ Live URL Threat Evaluator</span>
-        </div>
+    .omni {
+      flex: 1;
+      min-width: 0;
+      height: 26px;
+      padding: 0 10px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--canvas);
+      border: 1px solid var(--line);
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--ink-2);
+      white-space: nowrap;
+      overflow: hidden;
+    }
 
-        <div class="url-input-wrap">
-          <label for="test-url">Test Any URL / Target Link:</label>
-          <div class="input-row">
-            <input type="text" id="test-url" class="input-box" value="http://paypal-verification-update.xyz/signin?user=victim" placeholder="https://example.com/login" />
-            <button id="btn-eval" class="btn-evaluate">Run AI Scan</button>
-          </div>
-        </div>
+    .omni span {
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
 
-        <div class="presets-wrap">
-          <label style="font-size: 12px; font-weight: 600; color: #94a3b8;">One-Click Test Cases:</label>
-          <div class="preset-chips">
-            <button class="chip" data-url="https://github.com/torvalds/linux">✓ GitHub (Legit)</button>
-            <button class="chip" data-url="https://www.google.com/search?q=cybersecurity">✓ Google Search (Legit)</button>
-            <button class="chip chip-phish" data-url="http://192.168.1.100/admin/login.php">⚠ Raw IP Phish</button>
-            <button class="chip chip-phish" data-url="http://paypal-verification-update.xyz/signin?user=victim">⚠ PayPal Scam (.xyz)</button>
-            <button class="chip chip-phish" data-url="https://login.bank.com@secure-credential-harvest.com/auth">⚠ @ Delimiter Evasion</button>
-            <button class="chip chip-phish" data-url="https://accounts.google.com.security-alert-check.top/verify">⚠ Deep Subdomain Spoof</button>
-          </div>
-        </div>
+    .omni s {
+      text-decoration-color: var(--danger);
+      color: var(--ink-3);
+      flex: 0 0 auto;
+    }
 
-        <div>
-          <div class="section-title" style="margin-bottom: 10px;">
-            <span>🔬 Extracted Heuristic Feature Vector</span>
-          </div>
-          <table class="feature-matrix-table">
-            <thead>
-              <tr>
-                <th>Feature Metric</th>
-                <th>Extracted Value</th>
-                <th>Security Signal</th>
-              </tr>
-            </thead>
-            <tbody id="features-tbody">
-              <!-- Dynamically populated -->
-            </tbody>
-          </table>
-        </div>
-      </div>
+    .ext-icon {
+      position: relative;
+      width: 26px;
+      height: 26px;
+      display: grid;
+      place-items: center;
+      background: var(--ink);
+      color: var(--canvas);
+    }
 
-      <!-- Right: Real-time Popup Dashboard Simulator -->
-      <div class="simulator-wrap">
-        <span class="simulator-label">Live Extension Popup Dashboard</span>
-        
-        <div class="popup-frame-border">
-          <div class="sentinel-app">
-            <!-- Header -->
-            <header class="app-header">
-              <div class="brand">
-                <div class="shield-icon">
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
-                    <path d="M9 12l2 2 4-4"/>
-                  </svg>
-                </div>
-                <div class="brand-text">
-                  <span class="brand-title">SentinelAI</span>
-                  <span class="brand-sub">Link Shield • On-Device AI</span>
-                </div>
-              </div>
+    .ext-icon svg {
+      width: 14px;
+      height: 14px;
+    }
 
-              <div class="live-pill">
-                <span class="pulse-dot"></span>
-                <span>Shield Active</span>
-              </div>
-            </header>
+    .ext-badge {
+      position: absolute;
+      right: -6px;
+      bottom: -6px;
+      padding: 0 3px;
+      font-family: var(--mono);
+      font-weight: 800;
+      font-size: 8px;
+      line-height: 12px;
+      background: var(--safe);
+      color: var(--canvas);
+    }
 
-            <!-- URL Strip -->
-            <section class="url-card">
-              <div class="url-left">
-                <div class="globe-icon">
-                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <circle cx="12" cy="12" r="10"></circle>
-                    <line x1="2" y1="12" x2="22" y2="12"></line>
-                    <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
-                  </svg>
-                </div>
-                <div class="url-info">
-                  <span id="demo-target-domain" class="domain-name">paypal-verification-update.xyz</span>
-                  <span id="demo-target-url" class="full-url-preview">http://paypal-verification-update.xyz/signin?user=victim</span>
-                </div>
-              </div>
-              <div id="demo-protocol-pill" class="pill pill-danger">HTTP</div>
-            </section>
+    .ext-badge[data-tone="danger"] { background: var(--danger); }
+    .ext-badge[data-tone="warn"] { background: var(--warn); }
 
-            <!-- Main Score Card -->
-            <main class="dashboard-body">
-              <section class="score-card">
-                <div class="gauge-wrap">
-                  <svg class="gauge-svg" width="96" height="96" viewBox="0 0 100 100">
-                    <circle class="gauge-track" cx="50" cy="50" r="40" stroke-width="8" fill="none" />
-                    <circle id="demo-gauge-fill" class="gauge-progress" cx="50" cy="50" r="40" stroke-width="8" stroke-dasharray="251.2" stroke-dashoffset="251.2" stroke-linecap="round" fill="none" />
-                  </svg>
-                  <div class="gauge-center">
-                    <span id="demo-threat-score" class="score-number">94%</span>
-                    <span class="score-label">Risk Score</span>
-                  </div>
-                </div>
+    .popup-host {
+      display: flex;
+      justify-content: flex-end;
+      padding: 0 10px 10px;
+      position: relative;
+    }
 
-                <div class="verdict-wrap">
-                  <div id="demo-status-badge" class="status-badge badge-risk">
-                    <span class="badge-dot">●</span>
-                    <span id="demo-status-text">High Risk Phishing</span>
-                  </div>
-                  <p id="demo-verdict-summary" class="verdict-description">
-                    Critical Risk: High probability of phishing or scam link!
-                  </p>
-                </div>
-              </section>
+    .popup-host::before {
+      content: "";
+      position: absolute;
+      right: 18px;
+      top: -1px;
+      width: 10px;
+      height: 10px;
+      border-left: 1px solid var(--line-hi);
+      border-top: 1px solid var(--line-hi);
+      background: var(--canvas);
+      transform: translateY(-4px) rotate(45deg);
+    }
 
-              <!-- Breakdown Card -->
-              <section class="breakdown-card">
-                <div class="breakdown-header">
-                  <div class="breakdown-title">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3">
-                      <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
-                      <line x1="12" y1="9" x2="12" y2="13"/>
-                      <line x1="12" y1="17" x2="12.01" y2="17"/>
-                    </svg>
-                    <span>Threat Breakdown</span>
-                  </div>
-                  <span id="demo-flags-badge" class="count-pill pill-active">3 Detected</span>
-                </div>
+    .popup-frame {
+      display: block;
+      width: 360px;
+      height: 560px;
+      margin-top: 2px;
+      border: 1px solid var(--line-hi);
+      background: var(--canvas);
+    }
 
-                <div id="demo-flags-list" class="flags-list">
-                  <!-- Populated dynamically -->
-                </div>
-              </section>
+    .device-actions {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      margin-top: 16px;
+    }
 
-              <div class="action-row">
-                <button class="btn btn-secondary" onclick="simulateScan()">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
-                    <polyline points="23 4 23 10 17 10"/>
-                    <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
-                  </svg>
-                  <span>Re-scan Page</span>
-                </button>
-                <button class="btn btn-outline" id="demo-btn-whitelist">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
-                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
-                    <polyline points="9 12 11 14 15 10"/>
-                  </svg>
-                  <span>Trust Domain</span>
-                </button>
-              </div>
-            </main>
+    .device-actions p {
+      font-size: 12px;
+      color: var(--ink-3);
+    }
 
-            <footer class="app-footer">
-              <div class="privacy-tag">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
-                  <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
-                </svg>
-                <span>100% On-Device AI • Zero Data Telemetry</span>
-              </div>
-            </footer>
-          </div>
-        </div>
+    .js [data-in] {
+      opacity: 0;
+    }
 
-        <!-- Full-screen warning overlay trigger button -->
-        <button id="btn-trigger-overlay" class="trigger-overlay-btn" title="Preview the dark-mode full-screen warning modal injected into target pages">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3">
-            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
-            <line x1="12" y1="8" x2="12" y2="12"/>
-            <line x1="12" y1="16" x2="12.01" y2="16"/>
-          </svg>
-          <span>Preview Full-Screen Warning Overlay</span>
-        </button>
-      </div>
-    </div>
-  </div>
+    @media (max-width: 1060px) {
+      .bench {
+        grid-template-columns: 1fr;
+      }
 
-  <!-- Load the canonical extractor, generated scikit-learn model, and multi-signal detector. -->
-  <script src="ml/features.js"></script>
-  <script src="ml/models/model_exported.js"></script>
-  <script src="ml/detector.js"></script>
-  <script>
-    function extractUrlFeaturesDemo(rawUrl) {
-      try {
-        const cleanUrl = /^[a-zA-Z][a-zA-Z\d+.-]*:\/\//.test(rawUrl) ? rawUrl : `http://${rawUrl}`;
-        const parsed = new URL(cleanUrl);
-        const hostname = parsed.hostname.toLowerCase();
-        const featureArray = SentinelFeatures.extractFeatures(cleanUrl);
-        const tld = hostname.split('.').filter(Boolean).at(-1) || '';
-        const isIp = featureArray[3];
-        const hasAtSymbol = featureArray[4];
-        const numHyphens = featureArray[5];
-        const numSubdomains = featureArray[6];
-        const isHttps = parsed.protocol === 'https:' ? 1 : 0;
-        const hasSuspiciousTld = featureArray[10];
-        const suspiciousKeywordsCount = featureArray[9];
-        const hasDoubleSlashInPath = featureArray[8];
-        const matchedKeywords = SentinelFeatures.SUSPICIOUS_KEYWORDS.filter(keyword =>
-          `${parsed.pathname}?${parsed.search.slice(1)}`.toLowerCase().includes(keyword)
-        );
-        const domainEntropy = featureArray[13];
-        const urlLength = featureArray[0];
-        const domainLength = featureArray[1];
-
-        const flags = [];
-        if (isIp === 1) flags.push('Raw IP address used instead of legitimate domain name');
-        if (hasAtSymbol === 1) flags.push('Contains "@" credential-masking delimiter in URL');
-        if (isHttps === 0) flags.push('Unencrypted connection (insecure HTTP scheme)');
-        if (hasSuspiciousTld === 1) flags.push(`High-abuse Top-Level Domain (.${tld}) commonly used in phishing`);
-        if (matchedKeywords.length > 0) flags.push(`Sensitive auth/banking keywords detected: ${matchedKeywords.join(', ')}`);
-        if (numSubdomains >= 2) flags.push(`Excessive subdomain depth (${numSubdomains} levels)`);
-        if (numHyphens >= 2) flags.push(`Excessive hyphens in hostname (${numHyphens}) - typosquatting signal`);
-        if (domainEntropy > 3.5) flags.push(`High algorithmic domain randomness (Shannon entropy: ${domainEntropy})`);
-        if (hasDoubleSlashInPath === 1) flags.push('Open redirection path evasion pattern (//) detected');
-
-        return {
-          hostname,
-          protocol: parsed.protocol,
-          urlLength,
-          domainLength,
-          isIp,
-          numDots: featureArray[2],
-          numHyphens,
-          hasAtSymbol,
-          numSubdomains,
-          isHttps,
-          hasSuspiciousTld,
-          tld,
-          suspiciousKeywordsCount,
-          matchedKeywords,
-          specialChars: featureArray[12],
-          domainEntropy,
-          hasDoubleSlashInPath: featureArray[8],
-          featureArray,
-          flags
-        };
-      } catch (e) {
-        return null;
+      .device {
+        position: static;
+        max-width: 420px;
       }
     }
 
-    let lastScanData = null;
+    @media (max-width: 640px) {
+      .bar-links a:not(.btn) {
+        display: none;
+      }
+
+      .head {
+        grid-template-columns: 1fr;
+        padding-top: 40px;
+      }
+
+      .strip {
+        grid-template-columns: 1fr 1fr;
+      }
+
+      .strip > div:first-child {
+        grid-column: 1 / -1;
+        border-bottom: 1px solid var(--line);
+      }
+
+      .strip > div:nth-child(2) {
+        border-left: 0;
+      }
+
+      .story {
+        grid-template-columns: 1fr;
+      }
+
+      .story > div + div {
+        border-left: 0;
+        border-top: 1px solid var(--line);
+      }
+
+      .vec .v {
+        width: 84px;
+      }
+
+      .vec .s {
+        width: 60px;
+      }
+
+      .probe {
+        flex-wrap: wrap;
+      }
+
+      .probe input {
+        flex-basis: 100%;
+      }
+
+      .probe .btn {
+        flex: 1;
+        height: 48px;
+      }
+
+      .popup-host {
+        padding: 0 0 10px;
+        justify-content: center;
+      }
+
+      .popup-frame {
+        width: 100%;
+        max-width: 360px;
+      }
+    }
+
+  </style>
+  <script>document.documentElement.classList.add('js');</script>
+</head>
+<body>
+  <div class="grain" aria-hidden="true"></div>
+
+  <header class="bar">
+    <div class="wrap bar-inner">
+      <a href="/" class="wordmark" aria-label="SentinelAI home">
+        <span class="wordmark-glyph" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="square"><path d="M12 21s7-3.5 7-9V5l-7-2.5L5 5v7c0 5.5 7 9 7 9z"/><path d="M9 12l2 2 4-4"/></svg></span>
+        <span>SENTINEL<span class="wordmark-slash">/</span>AI</span>
+      </a>
+      <nav class="bar-links">
+        <a href="/">Home</a>
+        <a href="/dashboard/">Command center</a>
+        <a href="/auth.html">Sign in</a>
+        <a href="https://github.com/AhsanBuilds-07/phishguard-browser-extension" target="_blank" rel="noopener" class="btn btn-primary btn-sm">Get extension <span class="btn-arrow diag" aria-hidden="true">&#8599;</span></a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <section class="head">
+      <div data-in>
+        <span class="label label-accent">Testbench &middot; real model, in your browser</span>
+        <h1 class="display">Try to fool it<span style="color:var(--accent)">.</span><br><span class="dim">Then read why.</span></h1>
+      </div>
+      <p data-in>Every scan here runs the exact Random Forest and detector shipped in the extension. The popup on the right is the real extension UI.</p>
+    </section>
+
+    <div class="bench">
+      <!-- ============================== LEFT ============================== -->
+      <div>
+        <form class="probe" id="probe" autocomplete="off" data-in>
+          <label for="test-url" style="position:absolute;left:-9999px">URL to test</label>
+          <input type="text" id="test-url" spellcheck="false" value="http://paypal-verification-update.xyz/signin?user=victim" placeholder="https://example.com/login">
+          <button id="btn-eval" class="btn btn-primary" type="submit">Run scan <span class="btn-arrow" aria-hidden="true">&rarr;</span></button>
+        </form>
+
+        <div class="presets" data-in>
+          <button class="preset" data-url="https://github.com/torvalds/linux"><b>&#10003;</b>github</button>
+          <button class="preset" data-url="https://www.google.com/search?q=cybersecurity"><b>&#10003;</b>google search</button>
+          <button class="preset" data-bad data-url="http://192.168.1.100/admin/login.php"><b>!</b>raw IP</button>
+          <button class="preset" data-bad data-url="http://paypal-verification-update.xyz/signin?user=victim"><b>!</b>paypal .xyz</button>
+          <button class="preset" data-bad data-url="https://login.bank.com@secure-credential-harvest.com/auth"><b>!</b>@ evasion</button>
+          <button class="preset" data-bad data-url="https://accounts.google.com.security-alert-check.top/verify"><b>!</b>subdomain spoof</button>
+        </div>
+
+        <div class="strip" data-in>
+          <div>
+            <span class="label">Verdict</span>
+            <span class="strip-host" id="r-host">&mdash;</span>
+            <span class="verdict-word" id="r-verdict">&mdash;</span>
+          </div>
+          <div>
+            <span class="label">Risk</span>
+            <span class="big-num" id="r-risk">--<small>/100</small></span>
+          </div>
+          <div>
+            <span class="label">Time</span>
+            <span class="big-num" id="r-time">--<small>ms</small></span>
+          </div>
+        </div>
+        <p class="summary" id="r-summary" data-in>Run a scan to see the verdict.</p>
+
+        <section class="sec" data-in>
+          <div class="sec-hd">
+            <h2>Attack story</h2>
+            <span id="r-flags">0 signals</span>
+          </div>
+          <div class="story">
+            <div>
+              <h3>Observed</h3>
+              <ul id="r-facts"></ul>
+            </div>
+            <div>
+              <h3>Likely technique</h3>
+              <p id="r-technique">&mdash;</p>
+              <h3 style="margin-top:18px">Potential impact</h3>
+              <p id="r-impact">&mdash;</p>
+            </div>
+          </div>
+          <p class="coach" id="r-coach"><b>COACH</b><span>&mdash;</span></p>
+        </section>
+
+        <section class="sec" data-in>
+          <div class="sec-hd">
+            <h2>Feature vector</h2>
+            <span id="r-model">model &mdash;</span>
+          </div>
+          <table class="vec">
+            <tbody id="features-tbody"></tbody>
+          </table>
+        </section>
+      </div>
+
+      <!-- ============================== RIGHT ============================== -->
+      <aside class="device" data-in>
+        <span class="label">Extension popup &middot; live</span>
+        <div class="browser">
+          <div class="browser-bar">
+            <span class="browser-dots" aria-hidden="true"><i></i><i></i><i></i></span>
+            <div class="omni"><s id="omni-proto">http://</s><span id="omni-url">paypal-verification-update.xyz/signin</span></div>
+            <span class="ext-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="square"><path d="M12 21s7-3.5 7-9V5l-7-2.5L5 5v7c0 5.5 7 9 7 9z"/><path d="M9 12l2 2 4-4"/></svg>
+              <span class="ext-badge" id="ext-badge">SAFE</span>
+            </span>
+          </div>
+          <div class="popup-host">
+            <iframe class="popup-frame" id="popup-frame" src="/popup/popup.html" title="SentinelAI extension popup"></iframe>
+          </div>
+        </div>
+        <div class="device-actions">
+          <p>See what users get when a page is blocked.</p>
+          <button id="btn-trigger-overlay" class="btn btn-ghost btn-sm" type="button">Preview block page</button>
+        </div>
+      </aside>
+    </div>
+  </main>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <!-- Canonical extractor, generated scikit-learn model, multi-signal detector. -->
+  <script src="/ml/features.js"></script>
+  <script src="/ml/models/model_exported.js"></script>
+  <script src="/ml/detector.js"></script>
+  <script src="/assets/js/scan.js"></script>
+  <script src="/assets/vendor/gsap.min.js"></script>
+  <script src="/assets/js/block-page.js"></script>
+  <script>
+    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const canAnimate = typeof window.gsap !== 'undefined' && !reducedMotion;
+    const $ = (id) => document.getElementById(id);
+
+    const VERDICTS = {
+      malicious: { word: 'HOSTILE', tone: 'danger', badge: 'RISK' },
+      suspicious: { word: 'SUSPECT', tone: 'warn', badge: 'WARN' },
+      unknown: { word: 'UNSURE', tone: 'warn', badge: 'UNKN' },
+      safe: { word: 'CLEAR', tone: 'ok', badge: 'SAFE' }
+    };
+
+    // Which features count as a red flag, and how to describe them
+    const FEATURE_RULES = {
+      url_length: (v) => v > 75,
+      domain_length: (v) => v > 25,
+      num_dots: (v) => v > 3,
+      has_ip: (v) => v === 1,
+      has_at_symbol: (v) => v === 1,
+      num_hyphens: (v) => v >= 2,
+      num_subdomains: (v) => v >= 2,
+      is_https: (v) => v === 0,
+      has_double_slash_in_path: (v) => v === 1,
+      num_suspicious_keywords: (v) => v > 0,
+      has_suspicious_tld: (v) => v === 1,
+      num_query_params: (v) => v > 3,
+      special_char_count: (v) => v > 10,
+      domain_entropy: (v) => v > 3.5
+    };
+
+    const BOOLEAN_FEATURES = new Set(['has_ip', 'has_at_symbol', 'is_https', 'has_double_slash_in_path', 'has_suspicious_tld']);
+
+    let lastReport = null;
+    const history = [];
+
+    function toast(msg) {
+      const t = $('toast');
+      t.textContent = msg;
+      t.classList.add('show');
+      clearTimeout(toast._t);
+      toast._t = setTimeout(() => t.classList.remove('show'), 2600);
+    }
+
+    function pad2(n) {
+      return String(Math.max(0, Math.round(n))).padStart(2, '0');
+    }
+
+    function animateNumber(node, to, decimals, suffixHtml) {
+      const small = document.createElement('small');
+      small.innerHTML = suffixHtml;
+      const text = document.createTextNode('');
+      node.replaceChildren(text, small);
+      const render = (v) => { text.nodeValue = decimals ? v.toFixed(decimals) : pad2(v); };
+      if (!canAnimate) { render(to); return; }
+      const o = { v: 0 };
+      gsap.to(o, { v: to, duration: 0.8, ease: 'power3.out', onUpdate: () => render(o.v) });
+    }
+
+    function fill(listEl, items) {
+      listEl.replaceChildren(...items.map((t) => {
+        const li = document.createElement('li');
+        li.textContent = t;
+        return li;
+      }));
+    }
+
+    function renderFeatures(report) {
+      const tbody = $('features-tbody');
+      const names = SentinelFeatures.FEATURE_NAMES;
+      tbody.replaceChildren(...names.map((name, i) => {
+        const value = report.features[name];
+        const flagged = FEATURE_RULES[name] ? FEATURE_RULES[name](value) : false;
+        const tr = document.createElement('tr');
+        if (flagged) tr.className = 'flag';
+        const display = BOOLEAN_FEATURES.has(name) ? (value ? 'yes' : 'no') : String(value);
+        [['i', pad2(i + 1)], ['k', name], ['v', display], ['s', flagged ? 'FLAG' : 'ok']].forEach(([cls, txt]) => {
+          const td = document.createElement('td');
+          td.className = cls;
+          td.textContent = txt;
+          tr.appendChild(td);
+        });
+        return tr;
+      }));
+      if (canAnimate) gsap.from(tbody.children, { opacity: 0, x: -6, duration: 0.5, ease: 'expo.out', stagger: 0.02 });
+    }
+
+    function postToPopup() {
+      const frame = $('popup-frame');
+      if (!frame.contentWindow || !lastReport) return;
+      frame.contentWindow.postMessage({ type: 'sentinel:assessment', assessment: lastReport }, location.origin);
+      frame.contentWindow.postMessage({ type: 'sentinel:history', history }, location.origin);
+    }
 
     function simulateScan() {
-      const urlInput = document.getElementById('test-url');
-      const url = urlInput.value.trim();
-      const extracted = extractUrlFeaturesDemo(url);
+      const url = $('test-url').value.trim();
+      if (!url) { $('test-url').focus(); return; }
 
-      if (!extracted) {
-        alert('Please enter a valid URL (including http:// or https://)');
+      let report;
+      try {
+        report = SentinelScan.investigate(url);
+      } catch (err) {
+        toast(err.message || 'Enter a valid URL.');
         return;
       }
 
-      // Run on-device inference
-      const riskScore = SentinelModel.predictPhishingScore(extracted.featureArray);
-      const riskPercent = Math.round(riskScore * 100);
+      lastReport = report;
+      const v = VERDICTS[report.verdict] || VERDICTS.unknown;
+      const risk = (report.riskScore || 0) * 100;
 
-      lastScanData = {
-        hostname: extracted.hostname,
-        url,
-        riskScore,
-        flags: extracted.flags
-      };
+      history.unshift({
+        url: report.url,
+        hostname: report.hostname,
+        verdict: report.verdict,
+        riskScore: report.riskScore,
+        timestamp: Date.now()
+      });
+      if (history.length > 12) history.pop();
 
-      // Persistent Database Logging
+      // Persistent database logging (local API only; ignored elsewhere)
       try {
         const user = JSON.parse(localStorage.getItem('sentinel_user') || 'null');
         const token = localStorage.getItem('sentinel_token');
@@ -586,182 +846,90 @@
           },
           body: JSON.stringify({
             query_url: url,
-            risk_score: riskScore,
-            verdict: riskScore > 0.75 ? 'PHISHING' : riskScore >= 0.4 ? 'SUSPICIOUS' : 'BENIGN',
-            features_summary: `Exploit Testbench (${extracted.flags.length} heuristics)`,
+            risk_score: report.riskScore,
+            verdict: report.riskScore > 0.75 ? 'PHISHING' : report.riskScore >= 0.4 ? 'SUSPICIOUS' : 'BENIGN',
+            features_summary: `Exploit Testbench (${report.lexicalFlags.length} heuristics)`,
             user_email: user ? user.email : 'demo_operator@sentinelai'
           })
         }).catch(() => {});
       } catch (_) {}
 
-      // 1. Update Feature Table
-      const tbody = document.getElementById('features-tbody');
-      tbody.innerHTML = `
-        <tr><td>URL Length</td><td class="val-highlight">${extracted.urlLength} chars</td><td>${extracted.urlLength > 75 ? '⚠ Long URL' : '✓ Normal'}</td></tr>
-        <tr><td>Hostname Length</td><td class="val-highlight">${extracted.domainLength} chars</td><td>${extracted.domainLength > 25 ? '⚠ Long Domain' : '✓ Normal'}</td></tr>
-        <tr><td>Raw IP Host</td><td class="val-highlight ${extracted.isIp ? 'val-danger' : ''}">${extracted.isIp ? 'YES (1)' : 'NO (0)'}</td><td>${extracted.isIp ? '🚨 High Phishing Risk' : '✓ Legitimate Domain'}</td></tr>
-        <tr><td>Contains '@' Delimiter</td><td class="val-highlight ${extracted.hasAtSymbol ? 'val-danger' : ''}">${extracted.hasAtSymbol ? 'YES (1)' : 'NO (0)'}</td><td>${extracted.hasAtSymbol ? '🚨 Deceptive Credential Mask' : '✓ None'}</td></tr>
-        <tr><td>Protocol</td><td class="val-highlight ${!extracted.isHttps ? 'val-danger' : ''}">${extracted.protocol.toUpperCase()}</td><td>${extracted.isHttps ? '✓ HTTPS scheme' : '⚠ Insecure HTTP scheme'}</td></tr>
-        <tr><td>Abusive TLD (.${extracted.tld})</td><td class="val-highlight ${extracted.hasSuspiciousTld ? 'val-danger' : ''}">${extracted.hasSuspiciousTld ? 'YES (1)' : 'NO (0)'}</td><td>${extracted.hasSuspiciousTld ? '⚠ Suspicious TLD' : '✓ Standard TLD'}</td></tr>
-        <tr><td>Sensitive Keywords</td><td class="val-highlight ${extracted.suspiciousKeywordsCount ? 'val-danger' : ''}">${extracted.suspiciousKeywordsCount} (${extracted.matchedKeywords.join(', ') || 'none'})</td><td>${extracted.suspiciousKeywordsCount ? '⚠ Auth Target' : '✓ Clean'}</td></tr>
-        <tr><td>Domain Entropy</td><td class="val-highlight ${extracted.domainEntropy > 3.5 ? 'val-danger' : ''}">${extracted.domainEntropy}</td><td>${extracted.domainEntropy > 3.5 ? '⚠ High Randomness' : '✓ Normal Language'}</td></tr>
-      `;
+      // Verdict strip
+      $('r-host').textContent = report.hostname;
+      const word = $('r-verdict');
+      word.textContent = v.word;
+      word.dataset.tone = v.tone;
+      if (canAnimate) gsap.fromTo(word, { opacity: 0, y: 8 }, { opacity: 1, y: 0, duration: 0.5, ease: 'expo.out' });
+      animateNumber($('r-risk'), risk, 0, '/100');
+      animateNumber($('r-time'), report.elapsedMs, 2, 'ms');
+      $('r-summary').textContent = report.summary || 'Analysis complete.';
 
-      // 2. Update Extension Popup Simulator
-      document.getElementById('demo-target-domain').textContent = extracted.hostname;
-      document.getElementById('demo-target-url').textContent = url;
+      // Story
+      const chain = report.attackChain || {};
+      fill($('r-facts'), chain.observedFacts && chain.observedFacts.length ? chain.observedFacts : ['No suspicious structure observed.']);
+      $('r-technique').textContent = chain.inferredTechnique || 'None detected.';
+      $('r-impact').textContent = chain.potentialImpact || 'Standard browsing risk.';
+      $('r-coach').lastElementChild.textContent = report.scamCoachTip || report.recommendedAction || '—';
+      const n = (report.evidence || []).length;
+      $('r-flags').textContent = `${n} signal${n === 1 ? '' : 's'}`;
 
-      const protoPill = document.getElementById('demo-protocol-pill');
-      protoPill.textContent = extracted.isHttps ? 'HTTPS' : 'HTTP';
-      protoPill.className = extracted.isHttps ? 'pill pill-safe' : 'pill pill-danger';
+      // Features
+      $('r-model').textContent = report.modelVersion || 'rf-local';
+      renderFeatures(report);
 
-      document.getElementById('demo-threat-score').textContent = `${riskPercent}%`;
+      // Browser chrome
+      let proto = 'http://';
+      let rest = url;
+      try {
+        const u = new URL(report.url);
+        proto = u.protocol + '//';
+        rest = u.host + u.pathname + u.search;
+      } catch (_) {}
+      const protoEl = $('omni-proto');
+      protoEl.textContent = proto;
+      protoEl.style.textDecoration = proto === 'http://' ? 'line-through' : 'none';
+      $('omni-url').textContent = rest;
+      const badge = $('ext-badge');
+      badge.textContent = v.badge;
+      badge.dataset.tone = v.tone;
+      if (canAnimate) gsap.fromTo(badge, { scale: 0.6 }, { scale: 1, duration: 0.4, ease: 'back.out(3)' });
 
-      const gaugeFill = document.getElementById('demo-gauge-fill');
-      const GAUGE_CIRCUMFERENCE = 251.2;
-      const offset = GAUGE_CIRCUMFERENCE - (riskPercent / 100) * GAUGE_CIRCUMFERENCE;
-      gaugeFill.style.strokeDashoffset = offset;
+      document.querySelectorAll('.preset').forEach((p) => p.classList.toggle('is-current', p.dataset.url === url));
 
-      const statusBadge = document.getElementById('demo-status-badge');
-      const statusText = document.getElementById('demo-status-text');
-      const verdictSummary = document.getElementById('demo-verdict-summary');
-
-      if (riskScore > 0.75) {
-        gaugeFill.style.stroke = '#ef4444';
-        statusBadge.className = 'status-badge badge-risk';
-        statusText.textContent = 'High Risk Phishing';
-        verdictSummary.textContent = 'Critical Risk: High probability of phishing or scam link!';
-      } else if (riskScore >= 0.40) {
-        gaugeFill.style.stroke = '#f59e0b';
-        statusBadge.className = 'status-badge badge-warn';
-        statusText.textContent = 'Suspicious Link';
-        verdictSummary.textContent = 'Caution: Unusual domain characteristics or keywords detected.';
-      } else {
-        gaugeFill.style.stroke = '#10b981';
-        statusBadge.className = 'status-badge badge-safe';
-        statusText.textContent = 'Safe Site';
-        verdictSummary.textContent = 'Clean URL structure: Zero deceptive phishing patterns detected.';
-      }
-
-      // Flags
-      const flagsBadge = document.getElementById('demo-flags-badge');
-      const flagsList = document.getElementById('demo-flags-list');
-      if (extracted.flags.length === 0) {
-        flagsBadge.textContent = '0 Detected';
-        flagsBadge.className = 'count-pill pill-zero';
-        flagsList.innerHTML = `
-          <div class="clean-box">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
-              <polyline points="22 4 12 14.01 9 11.01"/>
-            </svg>
-            <div class="clean-text">
-              <span class="clean-title">All URL checks passed</span>
-              <span class="clean-desc">No deceptive keywords, raw IP address, or phishing tactics detected.</span>
-            </div>
-          </div>
-        `;
-      } else {
-        flagsBadge.textContent = `${extracted.flags.length} Flag${extracted.flags.length === 1 ? '' : 's'}`;
-        flagsBadge.className = 'count-pill pill-active';
-        flagsList.innerHTML = extracted.flags.map(f => `
-          <div class="flag-item">
-            <svg class="flag-icon-svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3">
-              <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
-              <line x1="12" y1="9" x2="12" y2="13"/>
-              <line x1="12" y1="17" x2="12.01" y2="17"/>
-            </svg>
-            <span>${f}</span>
-          </div>
-        `).join('');
-      }
+      postToPopup();
     }
 
-    // Preset button clicks
-    document.querySelectorAll('.chip').forEach(chip => {
+    document.querySelectorAll('.preset').forEach((chip) => {
       chip.addEventListener('click', () => {
-        document.getElementById('test-url').value = chip.dataset.url;
+        $('test-url').value = chip.dataset.url;
         simulateScan();
       });
     });
 
-    document.getElementById('btn-eval').addEventListener('click', simulateScan);
+    $('probe').addEventListener('submit', (e) => {
+      e.preventDefault();
+      simulateScan();
+    });
 
-    // Full-screen overlay trigger demo
-    document.getElementById('btn-trigger-overlay').addEventListener('click', () => {
-      if (!lastScanData) simulateScan();
+    $('popup-frame').addEventListener('load', postToPopup);
 
-      // Trigger the real in-page overlay directly
-      const hostDiv = document.createElement('div');
-      hostDiv.id = 'demo-warning-overlay-host';
-      const shadow = hostDiv.attachShadow({ mode: 'open' });
-
-      const riskPercent = Math.round(lastScanData.riskScore * 100);
-      const flagsHtml = (lastScanData.flags || []).map(f => `
-        <div style="background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(239, 68, 68, 0.2); border-radius: 8px; padding: 9px 12px; display: flex; align-items: flex-start; gap: 10px; font-size: 12.5px; color: #cbd5e1; line-height: 1.4;">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2.3"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-          <span>${f}</span>
-        </div>
-      `).join('') || '<div style="color: #94a3b8; font-size: 12px;">High confidence malicious indicators detected.</div>';
-
-      shadow.innerHTML = `
-        <div style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 9999999; display: flex; align-items: center; justify-content: center; background: rgba(11, 15, 25, 0.96); backdrop-filter: blur(16px); color: #f1f5f9; font-family: -apple-system, BlinkMacSystemFont, sans-serif;">
-          <div style="background: #111827; border: 1px solid rgba(239, 68, 68, 0.4); width: 92%; max-width: 580px; border-radius: 18px; box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.8), 0 0 30px rgba(239, 68, 68, 0.2); overflow: hidden; display: flex; flex-direction: column;">
-            <div style="background: linear-gradient(135deg, rgba(239, 68, 68, 0.2) 0%, rgba(185, 28, 28, 0.05) 100%); border-bottom: 1px solid rgba(239, 68, 68, 0.2); padding: 24px 28px; display: flex; align-items: center; gap: 16px;">
-              <div style="width: 50px; height: 50px; background: #ef4444; border-radius: 12px; display: flex; align-items: center; justify-content: center; color: #ffffff; box-shadow: 0 4px 15px rgba(239, 68, 68, 0.4);">
-                <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-              </div>
-              <div>
-                <h1 style="margin: 0; font-size: 19px; font-weight: 800; color: #ffffff;">Phishing & Scam Link Intercepted</h1>
-                <p style="margin: 4px 0 0 0; font-size: 13px; color: #94a3b8;">SentinelAI detected high-confidence deceptive threat indicators</p>
-              </div>
-            </div>
-
-            <div style="padding: 22px 28px; display: flex; flex-direction: column; gap: 16px;">
-              <div style="background: rgba(30, 41, 59, 0.7); border: 1px solid #334155; border-radius: 12px; padding: 12px 16px; display: flex; align-items: center; justify-content: space-between;">
-                <div>
-                  <div style="font-size: 10px; text-transform: uppercase; color: #94a3b8; font-weight: 700;">Suspicious Host:</div>
-                  <div style="font-size: 14px; font-weight: 700; color: #38bdf8; font-family: monospace;">${lastScanData.hostname}</div>
-                </div>
-                <div style="background: #ef4444; color: #ffffff; font-size: 12px; font-weight: 800; padding: 6px 12px; border-radius: 9999px;">${riskPercent}% Threat Risk</div>
-              </div>
-
-              <div style="font-size: 11px; font-weight: 700; text-transform: uppercase; color: #94a3b8;">Detected Risk Signals</div>
-              <div style="display: flex; flex-direction: column; gap: 8px; max-height: 160px; overflow-y: auto;">
-                ${flagsHtml}
-              </div>
-
-              <div style="background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.25); border-radius: 10px; padding: 10px 14px; display: flex; align-items: center; gap: 10px; font-size: 12px; color: #fca5a5; font-weight: 600;">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-                <span>Credential Guard Active: Input fields locked. Do NOT submit passwords or payments.</span>
-              </div>
-            </div>
-
-            <div style="padding: 16px 28px 22px; background: #0f172a; border-top: 1px solid #1e293b; display: flex; align-items: center; justify-content: space-between; gap: 12px;">
-              <button id="demo-btn-dismiss" style="background: transparent; border: none; color: #64748b; font-size: 13px; font-weight: 700; cursor: pointer; padding: 10px 12px; border-radius: 8px;">Dismiss (Demo)</button>
-              <button id="demo-btn-leave" style="background: #ef4444; color: #ffffff; border: none; font-size: 13px; font-weight: 700; padding: 11px 20px; border-radius: 10px; cursor: pointer; display: flex; align-items: center; gap: 8px; box-shadow: 0 4px 12px rgba(239, 68, 68, 0.35);">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
-                Go Back to Safety
-              </button>
-            </div>
-          </div>
-        </div>
-      `;
-
-      document.body.appendChild(hostDiv);
-
-      shadow.getElementById('demo-btn-leave').addEventListener('click', () => {
-        alert('Action: User safely departs the deceptive website.');
-        hostDiv.remove();
-      });
-
-      shadow.getElementById('demo-btn-dismiss').addEventListener('click', () => {
-        hostDiv.remove();
+    $('btn-trigger-overlay').addEventListener('click', () => {
+      if (!lastReport) simulateScan();
+      if (!lastReport) return;
+      SentinelBlockPage.show(lastReport, {
+        onLeave: (close) => { close(); toast('User returned to safety.'); },
+        onProceed: (close) => { close(); toast('User chose to continue (demo).'); }
       });
     });
 
-    // Run initial scan
-    window.addEventListener('DOMContentLoaded', simulateScan);
+    // Entrance
+    (function intro() {
+      const items = document.querySelectorAll('[data-in]');
+      if (!canAnimate) { items.forEach((el) => (el.style.opacity = 1)); return; }
+      gsap.fromTo(items, { opacity: 0, y: 14 }, { opacity: 1, y: 0, duration: 0.9, ease: 'expo.out', stagger: 0.05, delay: 0.05 });
+    })();
+
+    simulateScan();
   </script>
 </body>
 </html>

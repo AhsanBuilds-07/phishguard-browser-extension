@@ -378,6 +378,15 @@ document.addEventListener('DOMContentLoaded', () => {
   loadActiveReport();
   loadHistory();
 
+  // When embedded by the demo testbench, render whatever the parent page scanned.
+  if (!hasRuntime) {
+    window.addEventListener('message', (e) => {
+      if (e.origin !== location.origin || !e.data) return;
+      if (e.data.type === 'sentinel:assessment') renderReport(e.data.assessment);
+      if (e.data.type === 'sentinel:history') renderLog(e.data.history || []);
+    });
+  }
+
   // --------------------------------------------------------------------------
   // Preview data (only used when opened outside the extension)
   // --------------------------------------------------------------------------

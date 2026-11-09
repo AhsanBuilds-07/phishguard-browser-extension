@@ -221,14 +221,14 @@
         recentContainer.innerHTML = '<div class="empty-state compact">Navigate or investigate a URL to populate detections.</div>';
       } else {
         recentContainer.innerHTML = history.slice(0, 5).map(item => `
-          <div class="recent-scan-item" style="display:flex; justify-content:space-between; align-items:center; padding:10px 0; border-bottom:1px solid rgba(255,255,255,0.06);">
+          <div class="recent-scan-item" style="display:flex; justify-content:space-between; align-items:center; padding:10px 0; border-bottom:1px solid var(--line);">
             <div>
-              <strong style="color:#f8fafc; font-size:13px;">${escapeHtml(item.hostname || 'Unknown Host')}</strong>
-              <div style="font-size:11px; color:#64748b;">${formatDate(item.timestamp)}</div>
+              <strong style="color:var(--ink); font-size:13px;">${escapeHtml(item.hostname || 'Unknown Host')}</strong>
+              <div style="font-size:11px; color:var(--ink-3);">${formatDate(item.timestamp)}</div>
             </div>
             <div style="display:flex; align-items:center; gap:8px;">
-              ${item.brandMatch ? `<span class="tag-live" style="background:#ef4444; color:#fff;">${escapeHtml(item.brandMatch)}</span>` : ''}
-              <span class="pill pill-${item.verdict === 'malicious' ? 'danger' : item.verdict === 'suspicious' ? 'warn' : 'safe'}" style="font-size:10px; padding:3px 8px; border-radius:4px; font-weight:700;">
+              ${item.brandMatch ? `<span class="tag-live" style="background:var(--danger); color:var(--canvas);">${escapeHtml(item.brandMatch)}</span>` : ''}
+              <span class="pill pill-${item.verdict === 'malicious' ? 'danger' : item.verdict === 'suspicious' ? 'warn' : 'safe'}" style="font-size:10px; padding:3px 8px; font-weight:700;">
                 ${escapeHtml((item.verdict || 'safe').toUpperCase())}
               </span>
             </div>
@@ -243,43 +243,39 @@
   function drawActivityChart(history) {
     const canvas = byId('activity-chart');
     if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    canvas.width = canvas.parentElement.clientWidth || 320;
-    canvas.height = 140;
-
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    const wrap = canvas.parentElement;
 
     const counts = { safe: 0, suspicious: 0, malicious: 0, unknown: 0 };
     history.forEach(item => {
-      const v = item.verdict || 'safe';
-      counts[v] = (counts[v] || 0) + 1;
+      const v = counts[item.verdict] !== undefined ? item.verdict : 'unknown';
+      counts[v] += 1;
     });
 
-    const total = Math.max(1, history.length);
-    const safeW = (counts.safe / total) * canvas.width;
-    const suspW = (counts.suspicious / total) * canvas.width;
-    const malW = (counts.malicious / total) * canvas.width;
-    const unkW = (counts.unknown / total) * canvas.width;
+    const total = history.length;
+    const labels = { safe: 'Safe', suspicious: 'Suspicious', malicious: 'Malicious', unknown: 'Unknown' };
+    const legendDot = { safe: 'green-dot', suspicious: 'amber-dot', malicious: 'red-dot', unknown: 'slate-dot' };
+    const order = ['safe', 'suspicious', 'malicious', 'unknown'];
 
-    let x = 0;
-    ctx.fillStyle = '#10b981';
-    ctx.fillRect(x, 50, safeW, 36);
-    x += safeW;
+    const segments = total === 0
+      ? '<span class="dist-seg empty"></span>'
+      : order.filter(k => counts[k] > 0).map((k, i) => {
+          const pct = Math.round((counts[k] / total) * 100);
+          return `<span class="dist-seg ${k}" style="flex:${counts[k]}; animation-delay:${i * 70}ms" role="img" aria-label="${labels[k]}: ${counts[k]} (${pct}%)"><span class="dist-tip">${labels[k]} · ${counts[k]} · ${pct}%</span></span>`;
+        }).join('');
 
-    ctx.fillStyle = '#f59e0b';
-    ctx.fillRect(x, 50, suspW, 36);
-    x += suspW;
-
-    ctx.fillStyle = '#ef4444';
-    ctx.fillRect(x, 50, malW, 36);
-    x += malW;
-
-    ctx.fillStyle = '#64748b';
-    ctx.fillRect(x, 50, unkW, 36);
-
-    ctx.fillStyle = '#94a3b8';
-    ctx.font = '11px sans-serif';
-    ctx.fillText(`Safe: ${counts.safe}  ·  Suspicious: ${counts.suspicious}  ·  Malicious: ${counts.malicious}  ·  Unknown: ${counts.unknown}`, 10, 115);
+    let dist = wrap.querySelector('.dist');
+    if (!dist) {
+      dist = document.createElement('div');
+      dist.className = 'dist';
+      wrap.appendChild(dist);
+    }
+    dist.innerHTML = `
+      <div class="dist-total"><strong>${total}</strong><span>verdicts on this device</span></div>
+      <div class="dist-bar">${segments}</div>
+      <div class="dist-legend">
+        ${order.map(k => `<span><i class="legend-dot ${legendDot[k]}"></i>${labels[k]}<b>${counts[k]}</b></span>`).join('')}
+      </div>
+    `;
   }
 
   // ==========================================================================
@@ -317,11 +313,11 @@
               ${history.map(item => `
                 <tr>
                   <td>${formatDate(item.timestamp)}</td>
-                  <td><strong>${escapeHtml(item.hostname)}</strong><div style="font-size:10px; color:#64748b; max-width:280px; overflow:hidden; text-overflow:ellipsis;">${escapeHtml(item.url)}</div></td>
-                  <td><span class="feed-status status-${item.verdict === 'malicious' ? 'optin' : 'active'}" style="background:${item.verdict === 'malicious' ? '#ef4444' : item.verdict === 'suspicious' ? '#f59e0b' : '#10b981'}; color:#fff;">${escapeHtml(item.verdict.toUpperCase())}</span></td>
+                  <td><strong>${escapeHtml(item.hostname)}</strong><div style="font-size:10px; color:var(--ink-3); max-width:280px; overflow:hidden; text-overflow:ellipsis;">${escapeHtml(item.url)}</div></td>
+                  <td><span class="feed-status status-${item.verdict === 'malicious' ? 'optin' : 'active'}" style="background:${item.verdict === 'malicious' ? 'var(--danger)' : item.verdict === 'suspicious' ? 'var(--warn)' : 'var(--safe)'}; color:var(--canvas);">${escapeHtml(item.verdict.toUpperCase())}</span></td>
                   <td><strong>${Math.round((item.riskScore || 0) * 100)}%</strong></td>
-                  <td>${item.brandMatch ? `<span class="tag-live" style="background:#ef4444; color:#fff;">${escapeHtml(item.brandMatch)}</span>` : '<span style="color:#64748b;">—</span>'}</td>
-                  <td><small style="color:#94a3b8;">${escapeHtml(item.summary || 'Inspected')}</small></td>
+                  <td>${item.brandMatch ? `<span class="tag-live" style="background:var(--danger); color:var(--canvas);">${escapeHtml(item.brandMatch)}</span>` : '<span style="color:var(--ink-3);">—</span>'}</td>
+                  <td><small style="color:var(--ink-2);">${escapeHtml(item.summary || 'Inspected')}</small></td>
                 </tr>
               `).join('')}
             </tbody>
@@ -425,36 +421,36 @@
 
     const isMalicious = report.verdict === 'malicious';
     const isSuspicious = report.verdict === 'suspicious';
-    const statusColor = isMalicious ? '#ef4444' : isSuspicious ? '#f59e0b' : '#10b981';
+    const statusColor = isMalicious ? 'var(--danger)' : isSuspicious ? 'var(--warn)' : 'var(--safe)';
 
     resultBox.innerHTML = `
-      <div class="result-card" style="background:#0f172a; border:1px solid ${statusColor}; border-radius:12px; padding:24px; margin-top:20px;">
+      <div class="result-card" data-tone="${isMalicious ? 'malicious' : isSuspicious ? 'suspicious' : 'safe'}">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
           <div style="display:flex; align-items:center; gap:10px;">
-            <span class="badge-threat" style="background:${statusColor}; color:#fff; font-size:11px; font-weight:800; padding:4px 10px; border-radius:9999px;">
+            <span class="badge-threat" style="background:${statusColor}; color:var(--canvas); font-size:11px; font-weight:800; padding:4px 10px; ">
               ${escapeHtml(report.verdict.toUpperCase())}
             </span>
-            <strong style="font-size:16px; color:#f8fafc;">${escapeHtml(report.hostname)}</strong>
+            <strong style="font-size:16px; color:var(--ink);">${escapeHtml(report.hostname)}</strong>
           </div>
           <div style="text-align:right;">
             <span style="font-size:18px; font-weight:800; color:${statusColor};">${riskPercent}% Risk Score</span>
-            <div style="font-size:11px; color:#94a3b8;">${confidencePercent}% Confidence</div>
+            <div style="font-size:11px; color:var(--ink-2);">${confidencePercent}% Confidence</div>
           </div>
         </div>
 
         ${report.brandMatch ? `
-          <div class="brand-alert-banner" style="background:rgba(239,68,68,0.12); border-left:4px solid #ef4444; padding:12px; border-radius:6px; margin-bottom:16px;">
-            <strong style="color:#fca5a5;">⚠ Brand Impersonation Alert</strong>
-            <p style="margin:2px 0 0 0; color:#cbd5e1; font-size:12px;">This domain impersonates <strong>${escapeHtml(report.brandMatch)}</strong> without belonging to official infrastructure.</p>
+          <div class="brand-alert-banner" style="background:rgba(239,68,68,0.12); border-left:2px solid var(--danger); padding:12px; margin-bottom:16px;">
+            <strong>Brand impersonation</strong>
+            <p style="margin:2px 0 0 0; color:var(--ink-2); font-size:12px;">This domain impersonates <strong>${escapeHtml(report.brandMatch)}</strong> without belonging to official infrastructure.</p>
           </div>
         ` : ''}
 
         <!-- Attack Chain Box -->
-        <div style="background:#090d16; border:1px solid rgba(255,255,255,0.06); border-radius:8px; padding:16px; margin-bottom:16px;">
-          <h4 style="font-size:12px; text-transform:uppercase; letter-spacing:0.8px; color:#38bdf8; margin:0 0 8px 0;">Scam Story & Attack Chain</h4>
-          <p style="font-size:13px; color:#f1f5f9; margin:0 0 8px 0;"><strong>Inferred Technique:</strong> ${escapeHtml(attackChain.inferredTechnique || 'None detected.')}</p>
-          <p style="font-size:13px; color:#cbd5e1; margin:0 0 8px 0;"><strong>Potential User Impact:</strong> ${escapeHtml(attackChain.potentialImpact || 'Standard web navigation risk.')}</p>
-          <div style="font-size:12px; color:#94a3b8;">
+        <div style="background:var(--card); border:1px solid var(--line); padding:16px; margin-bottom:16px;">
+          <h4 style="font-size:12px; text-transform:uppercase; letter-spacing:0.8px; color:var(--ink); margin:0 0 8px 0;">Scam Story & Attack Chain</h4>
+          <p style="font-size:13px; color:var(--ink); margin:0 0 8px 0;"><strong>Inferred Technique:</strong> ${escapeHtml(attackChain.inferredTechnique || 'None detected.')}</p>
+          <p style="font-size:13px; color:var(--ink-2); margin:0 0 8px 0;"><strong>Potential User Impact:</strong> ${escapeHtml(attackChain.potentialImpact || 'Standard web navigation risk.')}</p>
+          <div style="font-size:12px; color:var(--ink-2);">
             <strong>Observed Facts:</strong>
             <ul style="margin:4px 0 0 18px; padding:0;">
               ${(attackChain.observedFacts || []).map(f => `<li>${escapeHtml(f)}</li>`).join('')}
@@ -464,15 +460,15 @@
 
         <!-- Evidence List -->
         <div style="margin-bottom:16px;">
-          <h4 style="font-size:12px; text-transform:uppercase; letter-spacing:0.8px; color:#64748b; margin:0 0 8px 0;">Verified Evidence Dossier (${evidenceList.length})</h4>
+          <h4 style="font-size:12px; text-transform:uppercase; letter-spacing:0.8px; color:var(--ink-3); margin:0 0 8px 0;">Verified Evidence Dossier (${evidenceList.length})</h4>
           <div style="display:grid; gap:8px;">
             ${evidenceList.map(item => `
-              <div style="background:#1e293b; padding:10px 14px; border-radius:6px; border:1px solid rgba(255,255,255,0.05); font-size:12px;">
+              <div style="background:var(--canvas); padding:10px 14px; border:1px solid var(--line); font-size:12px;">
                 <div style="display:flex; justify-content:space-between; margin-bottom:2px;">
-                  <strong style="color:#f8fafc;">${escapeHtml(item.title || item.category)}</strong>
-                  <span style="font-size:10px; color:${item.severity === 'high' ? '#ef4444' : '#f59e0b'}; font-weight:700;">${escapeHtml((item.severity || 'med').toUpperCase())}</span>
+                  <strong style="color:var(--ink);">${escapeHtml(item.title || item.category)}</strong>
+                  <span style="font-size:10px; color:${item.severity === 'high' ? 'var(--danger)' : 'var(--warn)'}; font-weight:700;">${escapeHtml((item.severity || 'med').toUpperCase())}</span>
                 </div>
-                <p style="margin:0; color:#94a3b8; font-size:11px;">${escapeHtml(item.detail || item)}</p>
+                <p style="margin:0; color:var(--ink-2); font-size:11px;">${escapeHtml(item.detail || item)}</p>
               </div>
             `).join('')}
           </div>
@@ -480,12 +476,12 @@
 
         <!-- Coach Tip -->
         <div class="coach-box" style="margin-bottom:16px;">
-          <span>💡</span>
+          <span>TIP</span>
           <span>${escapeHtml(report.scamCoachTip || 'Always verify the full domain name before entering passwords.')}</span>
         </div>
 
         <!-- Unverified Signals -->
-        <div style="font-size:11px; color:#64748b; border-top:1px solid rgba(255,255,255,0.06); padding-top:12px;">
+        <div style="font-size:11px; color:var(--ink-3); border-top:1px solid var(--line); padding-top:12px;">
           <strong>Signals Not Checked:</strong> ${(report.signalsNotChecked || []).join('; ')}
         </div>
       </div>
@@ -541,24 +537,24 @@
 
             <table style="width:100%; font-size:12px; margin-bottom:16px;">
               <tbody>
-                <tr><td style="color:#94a3b8; width:180px;">Scheme:</td><td><code>${escapeHtml(parsed.protocol)}</code></td></tr>
-                <tr><td style="color:#94a3b8;">Hostname:</td><td><code>${escapeHtml(host)}</code></td></tr>
-                <tr><td style="color:#94a3b8;">Subdomain Depth:</td><td><code>${escapeHtml(subdomains)}</code></td></tr>
-                <tr><td style="color:#94a3b8;">Top-Level Domain (TLD):</td><td><code>.${escapeHtml(tld)}</code></td></tr>
-                <tr><td style="color:#94a3b8;">Path Structure:</td><td><code>${escapeHtml(parsed.pathname || '/')}</code></td></tr>
-                <tr><td style="color:#94a3b8;">Query Parameters:</td><td><code>${escapeHtml(parsed.search || '(none)')}</code></td></tr>
+                <tr><td style="color:var(--ink-2); width:180px;">Scheme:</td><td><code>${escapeHtml(parsed.protocol)}</code></td></tr>
+                <tr><td style="color:var(--ink-2);">Hostname:</td><td><code>${escapeHtml(host)}</code></td></tr>
+                <tr><td style="color:var(--ink-2);">Subdomain Depth:</td><td><code>${escapeHtml(subdomains)}</code></td></tr>
+                <tr><td style="color:var(--ink-2);">Top-Level Domain (TLD):</td><td><code>.${escapeHtml(tld)}</code></td></tr>
+                <tr><td style="color:var(--ink-2);">Path Structure:</td><td><code>${escapeHtml(parsed.pathname || '/')}</code></td></tr>
+                <tr><td style="color:var(--ink-2);">Query Parameters:</td><td><code>${escapeHtml(parsed.search || '(none)')}</code></td></tr>
               </tbody>
             </table>
 
             <div class="entropy-meter-wrap">
               <div style="display:flex; justify-content:space-between; font-size:12px;">
                 <strong>Shannon Domain Entropy</strong>
-                <span style="font-weight:700; color:${entropy > 3.5 ? '#ef4444' : '#10b981'};">${entropy} / 8.0</span>
+                <span style="font-weight:700; color:${entropy > 3.5 ? 'var(--danger)' : 'var(--safe)'};">${entropy} / 8.0</span>
               </div>
               <div class="entropy-bar-track">
                 <div class="entropy-bar-fill" style="width:${entropyPercent}%;"></div>
               </div>
-              <small style="font-size:11px; color:#64748b;">Values &gt; 3.5 often indicate algorithmically generated (DGA) or randomized scam domains.</small>
+              <small style="font-size:11px; color:var(--ink-3);">Values &gt; 3.5 often indicate algorithmically generated (DGA) or randomized scam domains.</small>
             </div>
 
             ${homoglyphInfo.hasHomoglyphs ? `
@@ -619,15 +615,15 @@
         const isBadTld = /\.(xyz|top|tk|ml|ga|cf|gq|buzz|fit|work|icu|loan)$/i.test(query);
 
         resultsEl.innerHTML = `
-          <div style="font-size:13px; color:#f8fafc;">
+          <div style="font-size:13px; color:var(--ink);">
             <strong>IoC Evaluation for: <code>${escapeHtml(query)}</code></strong>
-            <p style="margin:6px 0; color:#cbd5e1;">Indicator Type: ${isIp ? 'Raw IPv4 Address' : 'Domain / FQDN'}</p>
+            <p style="margin:6px 0; color:var(--ink-2);">Indicator Type: ${isIp ? 'Raw IPv4 Address' : 'Domain / FQDN'}</p>
             <div style="margin-top:8px;">
-              ${isIp ? '<span class="tag-live" style="background:#ef4444; color:#fff;">High Risk: Direct IP Hosting</span>' : ''}
-              ${isBadTld ? '<span class="tag-live" style="background:#f59e0b; color:#fff;">High-Abuse TLD</span>' : ''}
-              ${!isIp && !isBadTld ? '<span class="tag-live" style="background:#10b981; color:#fff;">Clean Structural Syntax</span>' : ''}
+              ${isIp ? '<span class="tag-live" style="background:var(--danger); color:var(--canvas);">High Risk: Direct IP Hosting</span>' : ''}
+              ${isBadTld ? '<span class="tag-live" style="background:var(--warn); color:var(--canvas);">High-Abuse TLD</span>' : ''}
+              ${!isIp && !isBadTld ? '<span class="tag-live" style="background:var(--safe); color:var(--canvas);">Clean Structural Syntax</span>' : ''}
             </div>
-            <p style="font-size:11px; color:#64748b; margin-top:10px;">Notice: Live external VirusTotal/GSB queries require saved provider API keys to protect user privacy and respect quotas.</p>
+            <p style="font-size:11px; color:var(--ink-3); margin-top:10px;">Notice: Live external VirusTotal/GSB queries require saved provider API keys to protect user privacy and respect quotas.</p>
           </div>
         `;
       });
@@ -656,10 +652,10 @@
       }
 
       listEl.innerHTML = state.datasets.map((ds, idx) => `
-        <div class="dataset-item ${idx === 0 ? 'selected' : ''}" data-name="${escapeHtml(ds.name)}" style="padding:12px; border-bottom:1px solid rgba(255,255,255,0.06); cursor:pointer;">
-          <strong style="color:#f8fafc; font-size:13px;">${escapeHtml(ds.name)}</strong>
-          <div style="font-size:11px; color:#94a3b8; margin-top:2px;">${escapeHtml(String(ds.rows))} rows · ${escapeHtml(ds.size || '')}</div>
-          <div style="font-size:10px; color:#64748b; margin-top:4px;">${escapeHtml(ds.license || 'Documented')}</div>
+        <div class="dataset-item ${idx === 0 ? 'selected' : ''}" data-name="${escapeHtml(ds.name)}" style="padding:12px; border-bottom:1px solid var(--line); cursor:pointer;">
+          <strong style="color:var(--ink); font-size:13px;">${escapeHtml(ds.name)}</strong>
+          <div style="font-size:11px; color:var(--ink-2); margin-top:2px;">${escapeHtml(String(ds.rows))} rows · ${escapeHtml(ds.size || '')}</div>
+          <div style="font-size:10px; color:var(--ink-3); margin-top:4px;">${escapeHtml(ds.license || 'Documented')}</div>
         </div>
       `).join('');
 
@@ -698,7 +694,7 @@
         `;
       } else {
         summary.innerHTML = `
-          <div style="font-size:12px; color:#cbd5e1;">
+          <div style="font-size:12px; color:var(--ink-2);">
             <strong>Benchmark Dataset: ${escapeHtml(name)}</strong>
             <p style="margin:6px 0;">This official benchmark dataset can be obtained from the UCI Machine Learning Repository. Use the 'Import CSV' button to load your local file.</p>
           </div>
@@ -837,19 +833,19 @@
       <div class="panel" style="margin-bottom:12px; padding:16px;">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
           <div>
-            <strong style="font-size:14px; color:#f8fafc;">${escapeHtml(m.id)}</strong>
-            <span style="font-size:11px; color:#94a3b8; margin-left:8px;">${escapeHtml(m.algorithm)}</span>
+            <strong style="font-size:14px; color:var(--ink);">${escapeHtml(m.id)}</strong>
+            <span style="font-size:11px; color:var(--ink-2); margin-left:8px;">${escapeHtml(m.algorithm)}</span>
           </div>
           <div>
-            ${m.active ? '<span class="tag-live" style="background:#10b981; color:#fff;">ACTIVE IN EXTENSION</span>' : `<button class="button button-small button-quiet" onclick="alert('Model ${m.id} selected for rollback.')">Activate Version</button>`}
+            ${m.active ? '<span class="tag-live" style="background:var(--safe); color:var(--canvas);">ACTIVE IN EXTENSION</span>' : `<button class="button button-small button-quiet" onclick="alert('Model ${m.id} selected for rollback.')">Activate Version</button>`}
           </div>
         </div>
-        <div style="display:flex; gap:16px; font-size:12px; color:#cbd5e1; margin-top:8px;">
+        <div style="display:flex; gap:16px; font-size:12px; color:var(--ink-2); margin-top:8px;">
           <div>Accuracy: <strong>${m.accuracy}</strong></div>
           <div>F1-Score: <strong>${m.f1}</strong></div>
           <div>ROC-AUC: <strong>${m.roc_auc}</strong></div>
           <div>FPR: <strong>${m.fpr}</strong></div>
-          <div style="color:#64748b;">Trained: ${m.date}</div>
+          <div style="color:var(--ink-3);">Trained: ${m.date}</div>
         </div>
       </div>
     `).join('');
@@ -931,13 +927,13 @@
           <tbody>
             ${filtered.map(item => `
               <tr>
-                <td><code style="color:#38bdf8; font-weight:700;">#${item.id || 'LOC'}</code></td>
-                <td><small style="color:#cbd5e1; font-weight:600;">${escapeHtml(item.user_email || 'guest@terminal')}</small></td>
+                <td><code style="color:var(--ink); font-weight:700;">#${item.id || 'LOC'}</code></td>
+                <td><small style="color:var(--ink-2); font-weight:600;">${escapeHtml(item.user_email || 'guest@terminal')}</small></td>
                 <td>${formatDate(item.timestamp)}</td>
-                <td><strong style="color:#f8fafc;">${escapeHtml(item.hostname)}</strong></td>
+                <td><strong style="color:var(--ink);">${escapeHtml(item.hostname)}</strong></td>
                 <td><span class="pill pill-${item.verdict === 'malicious' ? 'danger' : item.verdict === 'suspicious' ? 'warn' : 'safe'}">${escapeHtml((item.verdict || 'safe').toUpperCase())}</span></td>
-                <td><strong style="color:${item.riskScore > 0.7 ? '#ef4444' : item.riskScore > 0.3 ? '#f59e0b' : '#10b981'};">${Math.round((item.riskScore || 0) * 100)}%</strong></td>
-                <td><span class="pill pill-safe" style="font-size:10px; display:inline-flex; align-items:center; gap:4px;">💾 Stored in SQLite</span></td>
+                <td><strong style="color:${item.riskScore > 0.7 ? 'var(--danger)' : item.riskScore > 0.3 ? 'var(--warn)' : 'var(--safe)'};">${Math.round((item.riskScore || 0) * 100)}%</strong></td>
+                <td><span class="pill pill-safe" style="font-size:10px; display:inline-flex; align-items:center; gap:4px;">Stored · SQLite</span></td>
               </tr>
             `).join('')}
           </tbody>
@@ -1023,7 +1019,7 @@
     const chipsContainer = byId('whitelist-chips');
     if (chipsContainer) {
       chipsContainer.innerHTML = whitelist.length === 0
-        ? '<span style="font-size:11px; color:#64748b;">No domains whitelisted.</span>'
+        ? '<span style="font-size:11px; color:var(--ink-3);">No domains whitelisted.</span>'
         : whitelist.map(dom => `
             <span class="whitelist-chip">
               <span>${escapeHtml(dom)}</span>
@@ -1072,7 +1068,7 @@
         if (nameEl) nameEl.textContent = displayName;
         if (avatarEl) avatarEl.textContent = displayName.substring(0, 2).toUpperCase();
         if (subEl) {
-          subEl.innerHTML = `<span style="font-size:8px; color:#10b981;">●</span> <span>${user.two_factor_enabled ? '2FA Secured' : 'Operator Active'}</span>`;
+          subEl.innerHTML = `<span style="font-size:8px; color:var(--safe);">●</span> <span>${user.two_factor_enabled ? '2FA Secured' : 'Operator Active'}</span>`;
         }
         if (authLink) {
           authLink.textContent = 'Exit ↗';
@@ -1089,7 +1085,7 @@
     } else {
       if (nameEl) nameEl.textContent = 'Guest Operator';
       if (subEl) {
-        subEl.innerHTML = `<a href="/auth.html" style="color:#38bdf8; text-decoration:none;">Sign In / 2FA ↗</a>`;
+        subEl.innerHTML = `<a href="/auth.html" style="color:var(--ink); text-decoration:none;">Sign In / 2FA ↗</a>`;
       }
       if (authLink) {
         authLink.textContent = '✦';

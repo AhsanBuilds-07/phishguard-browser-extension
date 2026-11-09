@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#080c14">
+  <meta name="theme-color" content="#08090a">
   <title>SentinelAI · Security Command Center</title>
   <link rel="stylesheet" href="dashboard.css">
 </head>
@@ -52,11 +52,11 @@
           <span class="avatar" id="operator-avatar">SA</span>
           <div style="flex:1; overflow:hidden;">
             <strong id="operator-name" style="display:block; white-space:nowrap; text-overflow:ellipsis; overflow:hidden;">Operator Active</strong>
-            <small id="operator-sub" style="display:flex; align-items:center; gap:4px; color:#10b981; font-weight:700;">
-              <span style="font-size:8px;">●</span> <span id="operator-2fa-status">2FA Secured</span>
+            <small id="operator-sub" style="display:flex; align-items:center; gap:4px; color:var(--ink-3);">
+              <i class="status-orb" style="width:5px;height:5px"></i> <span id="operator-2fa-status">2FA Secured</span>
             </small>
           </div>
-          <a href="/auth.html" id="operator-auth-link" title="Sign In / Switch Operator" style="color:#38bdf8; font-size:12px; margin-left:6px; text-decoration:none;">✦</a>
+          <a href="/auth.html" id="operator-auth-link" title="Sign In / Switch Operator" style="color:var(--ink-3); font-family:var(--mono); font-size:12px; margin-left:6px;">&#8599;</a>
         </div>
       </div>
     </aside>
@@ -569,7 +569,7 @@
               <p class="page-subtitle">Real-time SQLite database log recording every analyzed link, operator identity, and threat score.</p>
             </div>
             <div class="history-actions">
-              <span id="db-status-badge" class="pill pill-safe" style="display:inline-flex; align-items:center; gap:5px; font-size:11px; padding:4px 10px;">💾 SQLite DB Active</span>
+              <span id="db-status-badge" class="pill pill-safe" style="display:inline-flex; align-items:center; gap:6px;"><i class="status-orb"></i> SQLite DB active</span>
               <button id="refresh-history" class="button button-quiet">↻ Refresh DB</button>
               <button id="export-history-json" class="button button-quiet">Export CSV/JSON</button>
               <button id="clear-all-history" class="button button-danger">Clear History</button>
