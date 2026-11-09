@@ -1,8 +1,10 @@
 """Automated tests for SentinelAI Database, 2FA, Authentication, and Search Logging."""
 
+import os
 import secrets
 import sys
 import unittest
+import unittest.mock
 from pathlib import Path
 
 ROOT_DIR = Path(__file__).resolve().parent.parent
@@ -12,6 +14,29 @@ if str(ROOT_DIR) not in sys.path:
 from fastapi.testclient import TestClient
 import ml.platform_api as platform_api
 import ml.database as db
+
+SMS_GATEWAY_ENV = (
+    "FAST2SMS_API_KEY",
+    "TWILIO_ACCOUNT_SID",
+    "TWILIO_AUTH_TOKEN",
+    "TWILIO_PHONE_NUMBER",
+    "TWILIO_MESSAGING_SERVICE_SID",
+)
+_sms_env_patch = None
+
+
+def setUpModule():
+    # Registration tests use real-looking phone numbers; never let them reach a live
+    # SMS gateway because the developer happens to have credentials exported.
+    global _sms_env_patch
+    _sms_env_patch = unittest.mock.patch.dict("os.environ")
+    _sms_env_patch.start()
+    for key in SMS_GATEWAY_ENV:
+        os.environ.pop(key, None)
+
+
+def tearDownModule():
+    _sms_env_patch.stop()
 
 
 class AuthAndDatabaseTests(unittest.TestCase):
