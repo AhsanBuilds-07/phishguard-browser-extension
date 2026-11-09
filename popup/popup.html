@@ -15,9 +15,14 @@
         <span class="wordmark">SENTINEL<span class="wordmark-slash">/</span>AI</span>
         <span class="hd-meta"><span id="model-version">rf-local</span> &middot; on-device</span>
       </div>
-      <span class="status-chip" id="status-chip" title="Navigation guard is running">
-        <i class="status-led"></i><span id="status-chip-text">ARMED</span>
-      </span>
+      <div class="hd-chips">
+        <span class="token-chip" id="token-chip" title="Active scan quota">
+          <span id="token-chip-text">1 TOKEN</span>
+        </span>
+        <span class="status-chip" id="status-chip" title="Navigation guard is running">
+          <i class="status-led"></i><span id="status-chip-text">ARMED</span>
+        </span>
+      </div>
     </header>
 
     <!-- Target -->
@@ -100,6 +105,25 @@
       </button>
       <span class="ft-note">Zero history leaves this device</span>
     </footer>
+
+    <!-- Demo 5-Token Limit & Guest Limit Modal -->
+    <div id="demo-limit-modal" class="modal-backdrop hidden" role="dialog" aria-modal="true">
+      <div class="modal-card">
+        <div class="modal-tag" id="modal-tag">LIMIT REACHED</div>
+        <h3 class="modal-title" id="modal-title">Demo Account Notice</h3>
+        <p class="modal-desc" id="modal-desc">
+          Demo account only allows 5 tokens. For further protection, please login with your personal ID.
+        </p>
+        <div class="modal-actions">
+          <button type="button" class="btn-modal-primary" id="btn-modal-login">
+            Sign in with Personal ID &rarr;
+          </button>
+          <button type="button" class="btn-modal-subtle" id="btn-modal-close">
+            Close
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 
   <script src="popup.js"></script>

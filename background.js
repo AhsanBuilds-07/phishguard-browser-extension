@@ -323,9 +323,88 @@ async function analyzeTab(tabId, url, domSignals = null) {
       return whiteReport;
     }
 
-    // 2. Perform investigation
+    // 2. Scan Quota & Token Limit Verification
+    const activeUser = await getStorage('sentinel_user', null);
+    if (!activeUser) {
+      // Guest / Unregistered user: Allowed exactly 1 website scan
+      const guestScans = await getStorage('sentinel_guest_scans', 0);
+      if (guestScans >= 1) {
+        const guestLimitReport = {
+          tabId,
+          url,
+          hostname,
+          verdict: 'unknown',
+          riskLevel: 'AUTH',
+          riskScore: 0.0,
+          confidence: 1.0,
+          guestLimit: true,
+          summary: 'Guest scan limit reached (1/1 website scanned). Redirecting to login to unlock full protection.',
+          evidence: [
+            { category: 'Access Control', title: '1-Scan Guest Limit', detail: 'Unregistered users can scan 1 website free. Sign in or register to continue scanning.', severity: 'medium' }
+          ],
+          modelVersion: ACTIVE_MODEL_VERSION,
+          timestamp: Date.now()
+        };
+        tabCache.set(tabId, guestLimitReport);
+        chrome.action.setBadgeText({ tabId, text: 'AUTH' });
+        chrome.action.setBadgeBackgroundColor({ tabId, color: '#6366F1' });
+        await setStorage(`tab_${tabId}`, guestLimitReport);
+
+        // Auto-navigate to auth page after 1 scan used
+        try {
+          if (typeof chrome !== 'undefined' && chrome.tabs && chrome.tabs.update) {
+            chrome.tabs.update(tabId, { url: 'http://127.0.0.1:8000/auth.html?reason=guest_limit' });
+          }
+        } catch (e) {}
+        return guestLimitReport;
+      }
+    } else {
+      // User is logged in: Check demo quota
+      const isDemo = activeUser.email === 'demo@sentinelai.security' || activeUser.account_tier === 'demo';
+      if (isDemo) {
+        const demoScans = await getStorage('sentinel_demo_scans', activeUser.scans_used || 0);
+        if (demoScans >= 5) {
+          const demoLimitReport = {
+            tabId,
+            url,
+            hostname,
+            verdict: 'unknown',
+            riskLevel: 'LOCK',
+            riskScore: 0.0,
+            confidence: 1.0,
+            demoLimit: true,
+            summary: 'Demo account only allows 5 tokens. For further protection, please login with your personal ID.',
+            evidence: [
+              { category: 'Account Quota', title: '5-Token Demo Limit', detail: 'Demo operator account is limited to 5 free scans. Login with your personal account for full access.', severity: 'high' }
+            ],
+            modelVersion: ACTIVE_MODEL_VERSION,
+            timestamp: Date.now()
+          };
+          tabCache.set(tabId, demoLimitReport);
+          chrome.action.setBadgeText({ tabId, text: 'LOCK' });
+          chrome.action.setBadgeBackgroundColor({ tabId, color: '#EF4444' });
+          await setStorage(`tab_${tabId}`, demoLimitReport);
+          return demoLimitReport;
+        }
+      }
+    }
+
+    // 3. Perform investigation
     const report = investigateUrl(url, domSignals);
     report.tabId = tabId;
+
+    // Record token consumption
+    if (!activeUser) {
+      const currentGuest = await getStorage('sentinel_guest_scans', 0);
+      await setStorage('sentinel_guest_scans', currentGuest + 1);
+      report.tokenQuota = { tier: 'guest', used: currentGuest + 1, limit: 1, remaining: Math.max(0, 1 - (currentGuest + 1)) };
+    } else if (activeUser.email === 'demo@sentinelai.security' || activeUser.account_tier === 'demo') {
+      const currentDemo = await getStorage('sentinel_demo_scans', 0);
+      await setStorage('sentinel_demo_scans', currentDemo + 1);
+      report.tokenQuota = { tier: 'demo', used: currentDemo + 1, limit: 5, remaining: Math.max(0, 5 - (currentDemo + 1)) };
+    } else {
+      report.tokenQuota = { tier: activeUser.account_tier || 'personal', used: activeUser.scans_used || 0, limit: activeUser.scan_tokens || 50, remaining: 50 };
+    }
 
     // Check if user previously overrode this origin in extension storage
     const userOverrides = await getStorage('sentinel_overrides', []);
@@ -532,6 +611,39 @@ if (typeof chrome !== 'undefined') {
         }
         sendResponse({ success: true, whitelist: updated });
       });
+      return true;
+    }
+
+    // Token Status Query
+    if (message.action === 'GET_TOKEN_STATUS') {
+      (async () => {
+        const user = await getStorage('sentinel_user', null);
+        const guestScans = await getStorage('sentinel_guest_scans', 0);
+        const demoScans = await getStorage('sentinel_demo_scans', 0);
+        let status = {
+          tier: user ? (user.account_tier || (user.email === 'demo@sentinelai.security' ? 'demo' : 'personal')) : 'guest',
+          user: user || null,
+          guestScans,
+          demoScans,
+          limit: !user ? 1 : (user.email === 'demo@sentinelai.security' || user.account_tier === 'demo') ? 5 : (user.scan_tokens || 50),
+          remaining: !user ? Math.max(0, 1 - guestScans) : (user.email === 'demo@sentinelai.security' || user.account_tier === 'demo') ? Math.max(0, 5 - demoScans) : 50
+        };
+        sendResponse({ success: true, status });
+      })();
+      return true;
+    }
+
+    // Sync User Session into Extension Storage
+    if (message.action === 'SYNC_USER_SESSION') {
+      (async () => {
+        if (message.user) {
+          await setStorage('sentinel_user', message.user);
+          if (message.token) await setStorage('sentinel_token', message.token);
+        } else {
+          await chrome.storage.local.remove(['sentinel_user', 'sentinel_token']);
+        }
+        sendResponse({ success: true });
+      })();
       return true;
     }
 

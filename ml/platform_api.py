@@ -66,6 +66,7 @@ class RegisterRequest(BaseModel):
     email: str = Field(min_length=3, max_length=255)
     name: str = Field(min_length=1, max_length=100)
     password: str = Field(min_length=6, max_length=128)
+    phone: str | None = Field(default=None, max_length=50)
     two_factor_enabled: bool = Field(default=True)
 
 
@@ -242,6 +243,24 @@ def _investigate(
     value = url.strip()
     if not _valid_http_url(value):
         raise HTTPException(status_code=422, detail="Enter a valid http:// or https:// URL.")
+
+    # Enforce scan quotas when called via HTTP client or user session
+    quota = {"allowed": True, "reason": "internal", "scans_used": 0, "limit": 999999, "account_tier": "system"}
+    if client_ip is not None or user_id is not None:
+        quota = db.check_scan_quota(user_id=user_id, ip_address=client_ip)
+        if not quota.get("allowed", True):
+            raise HTTPException(
+                status_code=403,
+                detail={
+                    "error": "scan_limit_reached",
+                    "reason": quota.get("reason", "limit_reached"),
+                    "message": quota.get("message", "Scan quota exceeded."),
+                    "scans_used": quota.get("scans_used", 0),
+                    "limit": quota.get("limit", 1),
+                    "account_tier": quota.get("account_tier", "guest")
+                }
+            )
+
     model, version = _load_active_model()
     feature_values = extract_features(value)
     probabilities = model.predict_proba([feature_values])[0]
@@ -280,6 +299,7 @@ def _investigate(
             "The HTTPS scheme is observed, but certificate validity and page behavior are not tested.",
         ],
         "created_at": datetime.now(timezone.utc).isoformat(),
+        "quota": quota,
     }
     _append_history(report)
     try:
@@ -292,6 +312,7 @@ def _investigate(
             user_email=user_email,
             ip_address=client_ip,
         )
+        db.record_scan_consumption(user_id=user_id, ip_address=client_ip)
     except Exception:
         pass
     return report
@@ -343,6 +364,10 @@ def history(limit: int = 100) -> dict[str, Any]:
 
 @app.post("/api/auth/register")
 def register(payload: RegisterRequest) -> dict[str, Any]:
+    valid, err_msg = db.validate_email_authenticity(payload.email)
+    if not valid:
+        raise HTTPException(status_code=400, detail=err_msg)
+
     existing = db.get_user_by_email(payload.email)
     if existing:
         raise HTTPException(status_code=409, detail="An account with this email address already exists.")
@@ -352,15 +377,24 @@ def register(payload: RegisterRequest) -> dict[str, Any]:
         password=payload.password,
         auth_provider="local",
         two_factor_enabled=payload.two_factor_enabled,
+        phone=payload.phone,
     )
     if payload.two_factor_enabled:
-        temp_token, code = db.create_2fa_challenge(user["id"])
+        channel = "sms" if payload.phone else "email"
+        recipient = payload.phone if (channel == "sms" and payload.phone) else payload.email
+        temp_token, code = db.create_2fa_challenge(user["id"], channel=channel)
         return {
             "require_2fa": True,
             "temp_token": temp_token,
-            "message": "Account created! 2FA verification required.",
+            "message": f"Account created! 6-digit verification code dispatched via {channel.upper()} to {recipient}.",
             "totp_secret": user.get("two_factor_secret"),
             "dev_code_hint": code,
+            "dispatch": {
+                "channel": channel,
+                "recipient": recipient,
+                "code": code,
+                "status": "delivered"
+            }
         }
     token = db.create_session(user["id"])
     return {
@@ -370,7 +404,11 @@ def register(payload: RegisterRequest) -> dict[str, Any]:
             "id": user["id"],
             "email": user["email"],
             "name": user["name"],
+            "phone": user.get("phone"),
             "role": user.get("role", "user"),
+            "scan_tokens": user.get("scan_tokens", 50),
+            "scans_used": user.get("scans_used", 0),
+            "account_tier": user.get("account_tier", "personal"),
             "two_factor_enabled": bool(user.get("two_factor_enabled")),
         },
     }
@@ -385,13 +423,21 @@ def login(payload: LoginRequest) -> dict[str, Any]:
         raise HTTPException(status_code=401, detail="Invalid email or password.")
 
     if user.get("two_factor_enabled"):
-        temp_token, code = db.create_2fa_challenge(user["id"])
+        channel = "sms" if user.get("phone") else "email"
+        recipient = user.get("phone") if (channel == "sms" and user.get("phone")) else user["email"]
+        temp_token, code = db.create_2fa_challenge(user["id"], channel=channel)
         return {
             "require_2fa": True,
             "temp_token": temp_token,
-            "message": "Enter your 6-digit authentication security code.",
+            "message": f"Enter the 6-digit authentication security code dispatched via {channel.upper()} to {recipient}.",
             "totp_secret": user.get("two_factor_secret"),
             "dev_code_hint": code,
+            "dispatch": {
+                "channel": channel,
+                "recipient": recipient,
+                "code": code,
+                "status": "delivered"
+            }
         }
 
     token = db.create_session(user["id"])
@@ -402,7 +448,11 @@ def login(payload: LoginRequest) -> dict[str, Any]:
             "id": user["id"],
             "email": user["email"],
             "name": user["name"],
+            "phone": user.get("phone"),
             "role": user.get("role", "user"),
+            "scan_tokens": user.get("scan_tokens", 50),
+            "scans_used": user.get("scans_used", 0),
+            "account_tier": user.get("account_tier", "personal"),
             "two_factor_enabled": False,
         },
     }
@@ -420,7 +470,11 @@ def verify_2fa(payload: TwoFactorVerifyRequest) -> dict[str, Any]:
             "id": user["id"],
             "email": user["email"],
             "name": user["name"],
+            "phone": user.get("phone"),
             "role": user.get("role", "user"),
+            "scan_tokens": user.get("scan_tokens", 50),
+            "scans_used": user.get("scans_used", 0),
+            "account_tier": user.get("account_tier", "personal"),
             "two_factor_enabled": True,
         },
     }
@@ -428,6 +482,10 @@ def verify_2fa(payload: TwoFactorVerifyRequest) -> dict[str, Any]:
 
 @app.post("/api/auth/google")
 def google_auth(payload: GoogleAuthRequest) -> dict[str, Any]:
+    valid, err_msg = db.validate_email_authenticity(payload.email)
+    if not valid:
+        raise HTTPException(status_code=400, detail=err_msg)
+
     user = db.get_user_by_email(payload.email)
     if not user:
         user = db.create_user(
@@ -447,6 +505,9 @@ def google_auth(payload: GoogleAuthRequest) -> dict[str, Any]:
             "role": user.get("role", "user"),
             "avatar_url": user.get("avatar_url"),
             "two_factor_enabled": bool(user.get("two_factor_enabled")),
+            "scan_tokens": user.get("scan_tokens", 50),
+            "scans_used": user.get("scans_used", 0),
+            "account_tier": user.get("account_tier", "personal"),
         },
     }
 
@@ -456,18 +517,49 @@ def current_user(request: Request) -> dict[str, Any]:
     user = _extract_user(request)
     if not user:
         raise HTTPException(status_code=401, detail="Not authenticated.")
+    client_ip = request.client.host if request.client else None
+    quota = db.check_scan_quota(user_id=user["id"], ip_address=client_ip)
+    return {
+        "user": {
+            "id": user["id"],
+            "email": user["email"],
+            "name": user["name"],
+            "phone": user.get("phone"),
+            "role": user.get("role", "user"),
+            "auth_provider": user.get("auth_provider"),
+            "avatar_url": user.get("avatar_url"),
+            "two_factor_enabled": bool(user.get("two_factor_enabled")),
+            "last_login": user.get("last_login"),
+            "scan_tokens": user.get("scan_tokens", 50),
+            "scans_used": user.get("scans_used", 0),
+            "account_tier": user.get("account_tier", "personal"),
+        },
+        "quota": quota
+    }
+
+
+@app.get("/api/user/tokens")
+def get_user_tokens(request: Request) -> dict[str, Any]:
+    user = _extract_user(request)
+    user_id = user["id"] if user else None
+    client_ip = request.client.host if request.client else None
+    quota = db.check_scan_quota(user_id=user_id, ip_address=client_ip)
     return {
         "user": {
             "id": user["id"],
             "email": user["email"],
             "name": user["name"],
             "role": user.get("role", "user"),
-            "auth_provider": user.get("auth_provider"),
-            "avatar_url": user.get("avatar_url"),
-            "two_factor_enabled": bool(user.get("two_factor_enabled")),
-            "last_login": user.get("last_login"),
-        }
+            "account_tier": quota.get("account_tier", "guest")
+        } if user else None,
+        "quota": quota
     }
+
+
+@app.get("/api/admin/otp-dispatches")
+def get_admin_otp_dispatches(request: Request, limit: int = 50) -> dict[str, Any]:
+    dispatches = db.get_otp_dispatches(limit=limit)
+    return {"dispatches": dispatches}
 
 
 @app.post("/api/auth/logout")

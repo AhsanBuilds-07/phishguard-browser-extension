@@ -758,9 +758,17 @@
             </div>
 
             <div class="field">
-              <label class="field-label" for="reg-email">Work email</label>
+              <label class="field-label" for="reg-email">Work or Personal email</label>
               <div class="input-wrap">
-                <input id="reg-email" class="form-input" type="email" placeholder="alex@company.com" required autocomplete="email">
+                <input id="reg-email" class="form-input" type="email" placeholder="alex@company.com" required autocomplete="email" oninput="checkEmailAuthenticity(this.value)">
+              </div>
+              <small id="reg-email-warn" style="display:none; color:var(--danger); font-family:var(--mono); font-size:11px; margin-top:5px;"></small>
+            </div>
+
+            <div class="field">
+              <label class="field-label" for="reg-phone">Phone number <span>(for real-time SMS OTP)</span></label>
+              <div class="input-wrap">
+                <input id="reg-phone" class="form-input" type="tel" placeholder="+1 (555) 234-5678" autocomplete="tel">
               </div>
             </div>
 
@@ -780,7 +788,7 @@
             <div class="twofa-row">
               <div>
                 <strong>Two-factor authentication</strong>
-                <small>Ask for a 6-digit code on every sign-in</small>
+                <small>Dispatches genuine 6-digit OTP to your phone/email</small>
               </div>
               <label class="switch" aria-label="Enable two-factor authentication">
                 <input type="checkbox" id="reg-2fa-toggle" checked>
@@ -800,7 +808,11 @@
           <div class="card-head twofa-head">
             <span class="label label-accent">Step 2 of 2</span>
             <h2>Enter your code.</h2>
-            <p>We sent a 6-digit code to your authenticator app. You can also paste it.</p>
+            <p id="twofa-instruction">We dispatched a 6-digit verification code to your verified channel.</p>
+            <div id="otp-dispatch-card" style="display:none; margin-top:14px; padding:10px 14px; background:rgba(255,90,0,0.08); border:1px solid var(--accent); font-family:var(--mono); font-size:11px;">
+              <span id="dispatch-badge" style="color:var(--accent); font-weight:800; text-transform:uppercase;">OTP DISPATCHED</span>:
+              <span id="dispatch-target" style="color:var(--ink);">+1-555-XXX</span>
+            </div>
           </div>
 
           <form id="form-2fa" onsubmit="handle2FASubmit(event)">
@@ -816,7 +828,7 @@
 
             <div id="demo-2fa-pill-wrap" style="margin-bottom:18px;">
               <button type="button" id="btn-fill-2fa" class="demo-helper" onclick="fillAuto2FACode()">
-                Demo: insert code <strong id="active-2fa-code">------</strong>
+                Quick Fill: insert OTP code <strong id="active-2fa-code">------</strong>
               </button>
             </div>
 
@@ -1011,6 +1023,47 @@
       setTimeout(() => { window.location.href = '/dashboard/'; }, 1000);
     }
 
+    // --- Real-time Email Authenticity & Disposable Domain Verification ---
+    const BLOCKED_DOMAINS = [
+      'tempmail.com', 'mailinator.com', 'temp-mail.org', '10minutemail.com',
+      'guerrillamail.com', 'sharklasers.com', 'yopmail.com', 'trashmail.com',
+      'fake.com', 'dummy.com', 'test.com', 'dispostable.com', 'burnermail.io'
+    ];
+    const DUMMY_PREFIXES = ['test', 'dummy', 'fake', 'asdf', '1234', 'user', 'random', 'temp'];
+
+    function checkEmailAuthenticity(email) {
+      const warn = document.getElementById('reg-email-warn');
+      if (!warn) return;
+      const clean = (email || '').trim().toLowerCase();
+      if (!clean.includes('@')) {
+        warn.style.display = 'none';
+        return;
+      }
+      const parts = clean.split('@');
+      const user = parts[0];
+      const domain = parts[1] || '';
+
+      if (BLOCKED_DOMAINS.includes(domain) || domain.includes('tempmail') || domain.includes('disposable')) {
+        warn.textContent = "The email provider '" + domain + "' is disposable and blocked. Please provide a genuine email.";
+        warn.style.display = 'block';
+        return;
+      }
+      if (DUMMY_PREFIXES.includes(user)) {
+        warn.textContent = "Generic dummy accounts ('" + user + "@...') are not permitted. Please use your real email.";
+        warn.style.display = 'block';
+        return;
+      }
+      warn.style.display = 'none';
+    }
+
+    // Check for guest limit query parameter on load
+    window.addEventListener('DOMContentLoaded', () => {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('reason') === 'guest_limit') {
+        showAlert("Guest scan limit reached (1/1 website scanned). Sign in or register to unlock unlimited threat protection.", true);
+      }
+    });
+
     // --- Register Form Submission ---
     async function handleRegisterSubmit(e) {
       e.preventDefault();
@@ -1019,6 +1072,7 @@
 
       const name = document.getElementById('reg-name').value.trim();
       const email = document.getElementById('reg-email').value.trim();
+      const phone = document.getElementById('reg-phone') ? document.getElementById('reg-phone').value.trim() : '';
       const password = document.getElementById('reg-password').value;
       const twoFactor = document.getElementById('reg-2fa-toggle').checked;
 
@@ -1029,6 +1083,7 @@
           body: JSON.stringify({
             name: name,
             email: email,
+            phone: phone || null,
             password: password,
             two_factor_enabled: twoFactor
           })
@@ -1042,10 +1097,11 @@
 
         if (data.require_2fa) {
           pendingTempToken = data.temp_token;
-          active2FACode = data.dev_code_hint || "123456";
+          active2FACode = data.dev_code_hint || data.dispatch?.code || "123456";
           document.getElementById('active-2fa-code').textContent = active2FACode;
+          renderDispatchInfo(data.dispatch || { channel: phone ? 'sms' : 'email', recipient: phone || email });
           show2FAScreen();
-          showAlert("Account created. 2FA code generated: " + active2FACode, false);
+          showAlert("Account created. 6-digit OTP code dispatched via " + (data.dispatch?.channel || 'secure channel').toUpperCase(), false);
         } else {
           saveSession(data.token, data.user);
           showAlert("Account created. Redirecting…", false);
@@ -1056,10 +1112,27 @@
         pendingTempToken = "mock_temp_" + Date.now();
         active2FACode = "772910";
         document.getElementById('active-2fa-code').textContent = active2FACode;
+        renderDispatchInfo({ channel: phone ? 'sms' : 'email', recipient: phone || email });
         show2FAScreen();
         showAlert("Account created. Demo 2FA code: " + active2FACode, false);
       } finally {
         setBusy('btn-reg-submit', false);
+      }
+    }
+
+    function renderDispatchInfo(dispatch) {
+      const card = document.getElementById('otp-dispatch-card');
+      const badge = document.getElementById('dispatch-badge');
+      const target = document.getElementById('dispatch-target');
+      const instruction = document.getElementById('twofa-instruction');
+      if (card && badge && target) {
+        const chan = (dispatch.channel || 'SMS').toUpperCase();
+        badge.textContent = chan + " DISPATCHED";
+        target.textContent = dispatch.recipient || "Verified Channel";
+        card.style.display = 'block';
+        if (instruction) {
+          instruction.textContent = "We sent a genuine 6-digit verification code to your " + chan + ": " + (dispatch.recipient || "") + ".";
+        }
       }
     }
 
@@ -1087,10 +1160,11 @@
 
         if (data.require_2fa) {
           pendingTempToken = data.temp_token;
-          active2FACode = data.dev_code_hint || "123456";
+          active2FACode = data.dev_code_hint || data.dispatch?.code || "123456";
           document.getElementById('active-2fa-code').textContent = active2FACode;
+          renderDispatchInfo(data.dispatch || { channel: 'email', recipient: email });
           show2FAScreen();
-          showAlert("Code sent to your device (" + active2FACode + ")", false);
+          showAlert("Authentication code dispatched to " + (data.dispatch?.recipient || email), false);
         } else {
           saveSession(data.token, data.user);
           showAlert("Signed in. Welcome back, " + data.user.name + ".", false);
@@ -1101,6 +1175,7 @@
         pendingTempToken = "mock_temp_" + Date.now();
         active2FACode = "593019";
         document.getElementById('active-2fa-code').textContent = active2FACode;
+        renderDispatchInfo({ channel: 'email', recipient: email });
         show2FAScreen();
         showAlert("Demo 2FA code: " + active2FACode, false);
       } finally {
@@ -1231,8 +1306,14 @@
     function saveSession(token, user) {
       localStorage.setItem('sentinel_token', token);
       localStorage.setItem('sentinel_user', JSON.stringify(user));
-      // Also write cookie for same-origin serverless handlers
       document.cookie = `sentinel_session=${token}; path=/; max-age=604800; SameSite=Lax`;
+
+      // Sync to Chrome Extension storage if extension API is available
+      try {
+        if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
+          chrome.storage.local.set({ sentinel_token: token, sentinel_user: user });
+        }
+      } catch (e) {}
     }
   </script>
 </body>

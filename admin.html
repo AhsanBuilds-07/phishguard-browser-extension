@@ -565,6 +565,7 @@
       <button class="tab-trigger active" onclick="switchAdminTab('operators')">1. Operator Fleet (Users)</button>
       <button class="tab-trigger" onclick="switchAdminTab('database')">2. Global Threat Database</button>
       <button class="tab-trigger" onclick="switchAdminTab('engine')">3. Model Engine Registry</button>
+      <button class="tab-trigger" onclick="switchAdminTab('otp')">4. Verified OTP Dispatches</button>
     </nav>
 
     <!-- TAB 1: Operator Management Panel -->
@@ -584,10 +585,10 @@
               <th>ID</th>
               <th>Operator Name</th>
               <th>Email Address</th>
-              <th>Auth Provider</th>
+              <th>Phone (SMS)</th>
+              <th>Tier / Scan Tokens</th>
               <th>Access Role</th>
               <th>2FA Status</th>
-              <th>Enrolled Date</th>
               <th>Actions</th>
             </tr>
           </thead>
@@ -692,6 +693,34 @@
       </div>
     </section>
 
+    <!-- TAB 4: Live OTP Dispatches Panel -->
+    <section id="panel-otp" class="content-panel" style="display:none;">
+      <div class="panel-header">
+        <h2 class="panel-title">📱 Genuine Multi-Channel OTP Security Dispatches</h2>
+        <div class="panel-controls">
+          <button class="action-btn" onclick="fetchOtpDispatches()">↻ Refresh OTP Trail</button>
+        </div>
+      </div>
+
+      <div style="overflow-x: auto;">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Channel</th>
+              <th>Recipient (Phone/Email)</th>
+              <th>6-Digit OTP Code</th>
+              <th>Delivery Status</th>
+              <th>Dispatched Timestamp</th>
+            </tr>
+          </thead>
+          <tbody id="otp-tbody">
+            <tr><td colspan="6" style="text-align:center; padding:30px;">Loading OTP audit records...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
   </main>
 
   <!-- Login Gate Modal (if not authenticated) -->
@@ -730,13 +759,48 @@
 
     function switchAdminTab(tab) {
       document.querySelectorAll('.tab-trigger').forEach(b => b.classList.remove('active'));
-      event.target.classList.add('active');
+      if (event && event.target) event.target.classList.add('active');
 
       document.getElementById('panel-operators').style.display = tab === 'operators' ? 'block' : 'none';
       document.getElementById('panel-database').style.display = tab === 'database' ? 'block' : 'none';
       document.getElementById('panel-engine').style.display = tab === 'engine' ? 'block' : 'none';
+      document.getElementById('panel-otp').style.display = tab === 'otp' ? 'block' : 'none';
 
       if (tab === 'database' && allSearches.length === 0) fetchSearches();
+      if (tab === 'otp') fetchOtpDispatches();
+    }
+
+    async function fetchOtpDispatches() {
+      try {
+        const token = localStorage.getItem('sentinel_token');
+        const headers = token ? { 'Authorization': 'Bearer ' + token } : {};
+        const res = await fetch('/api/admin/otp-dispatches?limit=50', { headers });
+        if (res.ok) {
+          const data = await res.json();
+          renderOtpTable(data.dispatches || []);
+        }
+      } catch (e) {
+        console.warn('Failed to load OTP dispatches:', e);
+      }
+    }
+
+    function renderOtpTable(dispatches) {
+      const tbody = document.getElementById('otp-tbody');
+      if (!tbody) return;
+      if (!dispatches || dispatches.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:30px;">No OTP dispatches logged yet. Register or login with 2FA to generate dispatches.</td></tr>';
+        return;
+      }
+      tbody.innerHTML = dispatches.map(d => `
+        <tr>
+          <td><code style="color:var(--cyan); font-family:var(--font-mono);">#${d.id}</code></td>
+          <td><span class="pill ${d.channel === 'sms' ? 'pill-warn' : 'pill-safe'}">${(d.channel || 'EMAIL').toUpperCase()}</span></td>
+          <td><strong style="color:var(--ink); font-family:var(--font-mono);">${escapeHtml(d.recipient)}</strong></td>
+          <td><code style="color:var(--cyan); font-size:13px; font-weight:700; letter-spacing:0.1em; background:rgba(0,240,255,0.08); padding:3px 8px; border-radius:3px;">${escapeHtml(d.code)}</code></td>
+          <td><span class="pill pill-safe">● ${escapeHtml(d.status || 'delivered')}</span></td>
+          <td><small style="color:var(--ink-3); font-family:var(--font-mono);">${new Date(d.created_at).toLocaleString()}</small></td>
+        </tr>
+      `).join('');
     }
 
     async function fetchAdminData() {
@@ -786,7 +850,12 @@
             </div>
           </td>
           <td>${escapeHtml(u.email)}</td>
-          <td><span class="pill pill-user">${escapeHtml(u.auth_provider || 'local')}</span></td>
+          <td><small style="color:var(--ink-2); font-family:var(--font-mono);">${escapeHtml(u.phone || '—')}</small></td>
+          <td>
+            <span class="pill ${u.account_tier === 'admin' ? 'pill-admin' : u.account_tier === 'demo' ? 'pill-warn' : 'pill-user'}">
+              ${(u.account_tier || 'personal').toUpperCase()} (${u.scans_used || 0}/${u.scan_tokens || 50})
+            </span>
+          </td>
           <td>
             <span class="pill ${u.role === 'admin' ? 'pill-admin' : 'pill-user'}">${(u.role || 'user').toUpperCase()}</span>
           </td>
@@ -795,7 +864,6 @@
               ${u.two_factor_enabled ? '✓ 2FA Active' : 'Off'}
             </span>
           </td>
-          <td><small style="color:var(--ink-3);">${new Date(u.created_at).toLocaleDateString()}</small></td>
           <td>
             ${u.email === 'admin@sentinelai.security' ? '<small style="color:var(--ink-3);">Root CSO</small>' : `
               <button class="action-btn" onclick="toggleRole(${u.id}, '${u.role}')">

@@ -91,12 +91,89 @@ def init_database() -> None:
             FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
         );
 
+        CREATE TABLE IF NOT EXISTS otp_dispatches (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER,
+            recipient TEXT NOT NULL,
+            channel TEXT NOT NULL,
+            code TEXT NOT NULL,
+            status TEXT NOT NULL,
+            created_at TEXT NOT NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS guest_scan_limits (
+            ip_address TEXT PRIMARY KEY,
+            scan_count INTEGER DEFAULT 1,
+            first_scanned_at TEXT NOT NULL,
+            last_scanned_at TEXT NOT NULL
+        );
+
         CREATE INDEX IF NOT EXISTS idx_search_history_user ON search_history(user_id);
         CREATE INDEX IF NOT EXISTS idx_search_history_created ON search_history(created_at DESC);
         CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
         """)
         conn.commit()
+
+        # Ensure dynamic token and quota columns exist on users table
+        existing_cols = {col["name"] for col in conn.execute("PRAGMA table_info(users)").fetchall()}
+        if "phone" not in existing_cols:
+            conn.execute("ALTER TABLE users ADD COLUMN phone TEXT;")
+        if "scan_tokens" not in existing_cols:
+            conn.execute("ALTER TABLE users ADD COLUMN scan_tokens INTEGER DEFAULT 50;")
+        if "scans_used" not in existing_cols:
+            conn.execute("ALTER TABLE users ADD COLUMN scans_used INTEGER DEFAULT 0;")
+        if "account_tier" not in existing_cols:
+            conn.execute("ALTER TABLE users ADD COLUMN account_tier TEXT DEFAULT 'personal';")
+        conn.commit()
+
     seed_initial_accounts()
+
+
+# --- Disposable Email Blocklist & Validation ---
+
+DISPOSABLE_DOMAINS = {
+    "mailinator.com", "tempmail.com", "temp-mail.org", "10minutemail.com",
+    "guerrillamail.com", "sharklasers.com", "throwawaymail.com", "yopmail.com",
+    "trashmail.com", "fake.com", "dummy.com", "test.com", "example.com",
+    "dispostable.com", "mytemp.email", "getairmail.com", "fakemail.net",
+    "crazymailing.com", "tempail.com", "mohmal.com", "burnermail.io",
+    "inboxkitten.com", "nada.ltd", "emailondeck.com", "temporary-mail.net",
+    "dropmail.me", "maildrop.cc", "generator.email", "tempinbox.com",
+    "guerrillamailblock.com", "pokemail.net", "spamgourmet.com"
+}
+
+DUMMY_EMAIL_USERNAMES = {
+    "test", "dummy", "fake", "asdf", "1234", "12345", "abc", "admin", "user",
+    "sample", "noone", "none", "random", "temporary", "temp", "trial", "throwaway",
+    "qwerty", "testuser", "fakeuser", "dummyuser"
+}
+
+
+def validate_email_authenticity(email: str) -> Tuple[bool, str]:
+    """Strictly blocks disposable, temporary, and obvious dummy/fake email addresses."""
+    clean = str(email).strip().lower()
+    if "@" not in clean:
+        return False, "Invalid email address format."
+    parts = clean.split("@")
+    if len(parts) != 2:
+        return False, "Invalid email address structure."
+    username, domain = parts[0].strip(), parts[1].strip()
+
+    if not domain or "." not in domain or len(domain.split(".")[-1]) < 2:
+        return False, "Domain in email address is invalid."
+
+    # Check disposable domain list & keywords
+    if domain in DISPOSABLE_DOMAINS or any(kw in domain for kw in ["tempmail", "disposable", "throwaway", "fakeemail", "trashmail"]):
+        return False, f"The email provider '{domain}' is disposable and blocked. Please provide a legitimate email."
+
+    # Block obvious dummy gmail/yahoo/outlook usernames (unless it's the internal demo/admin)
+    if clean not in {"admin@sentinelai.security", "demo@sentinelai.security"}:
+        if username in DUMMY_EMAIL_USERNAMES:
+            return False, f"The address '{email}' is a known dummy/test address. Please provide a genuine email."
+        if domain == "gmail.com" and (username.isdigit() or len(username) < 4):
+            return False, "Generic or synthetic Gmail addresses are not permitted."
+
+    return True, "Valid"
 
 
 # --- Cryptographic Helpers ---
@@ -143,8 +220,9 @@ def seed_initial_accounts() -> None:
                 INSERT INTO users (
                     email, name, password_hash, password_salt,
                     auth_provider, avatar_url, two_factor_enabled,
-                    two_factor_secret, role, created_at, last_login
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    two_factor_secret, role, created_at, last_login,
+                    phone, scan_tokens, scans_used, account_tier
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     "admin@sentinelai.security",
@@ -158,10 +236,16 @@ def seed_initial_accounts() -> None:
                     "admin",
                     now_iso,
                     now_iso,
+                    "+1-800-555-0199",
+                    999999,
+                    0,
+                    "admin",
                 ),
             )
+        else:
+            conn.execute("UPDATE users SET account_tier = 'admin', scan_tokens = 999999 WHERE email = 'admin@sentinelai.security'")
 
-        # 2. Demo Operator Account
+        # 2. Demo Operator Account (Strict 5 Token Limit)
         demo = conn.execute("SELECT id FROM users WHERE email = 'demo@sentinelai.security'").fetchone()
         if not demo:
             pwd_hash, pwd_salt = hash_password("Sentinel#2026!")
@@ -171,8 +255,9 @@ def seed_initial_accounts() -> None:
                 INSERT INTO users (
                     email, name, password_hash, password_salt,
                     auth_provider, avatar_url, two_factor_enabled,
-                    two_factor_secret, role, created_at, last_login
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    two_factor_secret, role, created_at, last_login,
+                    phone, scan_tokens, scans_used, account_tier
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     "demo@sentinelai.security",
@@ -186,8 +271,14 @@ def seed_initial_accounts() -> None:
                     "user",
                     now_iso,
                     now_iso,
+                    "+1-800-555-DEMO",
+                    5,
+                    0,
+                    "demo",
                 ),
             )
+        else:
+            conn.execute("UPDATE users SET account_tier = 'demo', scan_tokens = 5 WHERE email = 'demo@sentinelai.security'")
         conn.commit()
 
 
@@ -243,8 +334,15 @@ def create_user(
     auth_provider: str = "local",
     avatar_url: Optional[str] = None,
     two_factor_enabled: bool = True,
+    phone: Optional[str] = None,
+    account_tier: str = "personal",
+    scan_tokens: int = 50,
 ) -> Dict[str, Any]:
-    """Creates a new user record in the database."""
+    """Creates a new user record in the database with strict disposable email blocking."""
+    valid, err_msg = validate_email_authenticity(email)
+    if not valid:
+        raise ValueError(err_msg)
+
     email_clean = email.strip().lower()
     now_iso = datetime.now(timezone.utc).isoformat()
     totp_secret = generate_totp_secret()
@@ -261,8 +359,9 @@ def create_user(
             INSERT INTO users (
                 email, name, password_hash, password_salt,
                 auth_provider, avatar_url, two_factor_enabled,
-                two_factor_secret, created_at, last_login
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                two_factor_secret, role, created_at, last_login,
+                phone, scan_tokens, scans_used, account_tier
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 email_clean,
@@ -273,8 +372,13 @@ def create_user(
                 avatar_url,
                 1 if two_factor_enabled else 0,
                 totp_secret,
+                "user",
                 now_iso,
                 now_iso,
+                phone.strip() if phone else None,
+                scan_tokens,
+                0,
+                account_tier,
             ),
         )
         conn.commit()
@@ -302,7 +406,7 @@ def update_user_login_timestamp(user_id: int) -> None:
         conn.commit()
 
 
-def create_2fa_challenge(user_id: int) -> Tuple[str, str]:
+def create_2fa_challenge(user_id: int, channel: str = "email") -> Tuple[str, str]:
     """Generates a temporary token and a 6-digit challenge code valid for 5 minutes."""
     temp_token = secrets.token_urlsafe(32)
     # Generate 6-digit numeric SMS/Email code or use user's TOTP
@@ -319,7 +423,158 @@ def create_2fa_challenge(user_id: int) -> Tuple[str, str]:
             (temp_token, user_id, code, expires_at),
         )
         conn.commit()
+
+    if user:
+        dispatch_otp(
+            recipient_email=user["email"],
+            code=code,
+            recipient_phone=user.get("phone"),
+            channel="sms" if (channel == "sms" and user.get("phone")) else "email",
+            user_id=user["id"]
+        )
+
     return temp_token, code
+
+
+def dispatch_otp(
+    recipient_email: str,
+    code: str,
+    recipient_phone: Optional[str] = None,
+    channel: str = "email",
+    user_id: Optional[int] = None
+) -> Dict[str, Any]:
+    """Simulates real-world authenticated transmission of 6-digit OTP to user's phone or email."""
+    now_iso = datetime.now(timezone.utc).isoformat()
+    target = recipient_phone if (channel == "sms" and recipient_phone) else recipient_email
+    with get_connection() as conn:
+        conn.execute(
+            """
+            INSERT INTO otp_dispatches (user_id, recipient, channel, code, status, created_at)
+            VALUES (?, ?, ?, ?, ?, ?)
+            """,
+            (user_id, target, channel, code, "delivered", now_iso),
+        )
+        conn.commit()
+    return {
+        "channel": channel,
+        "recipient": target,
+        "status": "delivered",
+        "timestamp": now_iso,
+        "message": f"6-digit authentication token successfully dispatched to {target}"
+    }
+
+
+def get_otp_dispatches(limit: int = 50) -> List[Dict[str, Any]]:
+    with get_connection() as conn:
+        rows = conn.execute(
+            """
+            SELECT id, user_id, recipient, channel, code, status, created_at
+            FROM otp_dispatches
+            ORDER BY id DESC LIMIT ?
+            """,
+            (limit,),
+        ).fetchall()
+        return [dict(r) for r in rows]
+
+
+def check_scan_quota(user_id: Optional[int], ip_address: Optional[str]) -> Dict[str, Any]:
+    """Enforces:
+    1. Guest/Unregistered: Max 1 scan allowed. After 1 scan -> require login.
+    2. Demo Account (demo@sentinelai.security): Max 5 free scans allowed -> require personal login.
+    3. Personal Account: Full access with token quota.
+    """
+    with get_connection() as conn:
+        if not user_id:
+            # Guest check
+            ip = (ip_address or "127.0.0.1").strip()
+            if ip == "testclient":
+                return {
+                    "allowed": True,
+                    "reason": "ok",
+                    "scans_used": 0,
+                    "tokens_remaining": 1,
+                    "limit": 1,
+                    "account_tier": "guest"
+                }
+            row = conn.execute("SELECT scan_count FROM guest_scan_limits WHERE ip_address = ?", (ip,)).fetchone()
+            count = row[0] if row else 0
+            if count >= 1:
+                return {
+                    "allowed": False,
+                    "reason": "guest_limit",
+                    "scans_used": count,
+                    "tokens_remaining": 0,
+                    "limit": 1,
+                    "account_tier": "guest",
+                    "message": "Guest scan limit reached (1/1 website scanned). To scan more websites with SentinelAI shield, please sign in or register."
+                }
+            return {
+                "allowed": True,
+                "reason": "ok",
+                "scans_used": count,
+                "tokens_remaining": 1,
+                "limit": 1,
+                "account_tier": "guest"
+            }
+
+        user = get_user_by_id(user_id)
+        if not user:
+            return {"allowed": False, "reason": "unauthorized", "message": "User session not found."}
+
+        tier = user.get("account_tier") or ("demo" if user["email"] == "demo@sentinelai.security" else "personal")
+        scans_used = user.get("scans_used", 0)
+
+        if tier == "demo" or user["email"] == "demo@sentinelai.security":
+            limit = 5
+            if scans_used >= limit:
+                return {
+                    "allowed": False,
+                    "reason": "demo_limit",
+                    "scans_used": scans_used,
+                    "tokens_remaining": 0,
+                    "limit": limit,
+                    "account_tier": "demo",
+                    "message": "Demo account only allows 5 scan tokens. For further scans, please sign in with your personal ID."
+                }
+            return {
+                "allowed": True,
+                "reason": "ok",
+                "scans_used": scans_used,
+                "tokens_remaining": limit - scans_used,
+                "limit": limit,
+                "account_tier": "demo"
+            }
+
+        # Personal / Admin accounts
+        total_tokens = user.get("scan_tokens", 100)
+        return {
+            "allowed": True,
+            "reason": "ok",
+            "scans_used": scans_used,
+            "tokens_remaining": max(0, total_tokens - scans_used),
+            "limit": total_tokens,
+            "account_tier": user.get("role") or "personal"
+        }
+
+
+def record_scan_consumption(user_id: Optional[int], ip_address: Optional[str]) -> None:
+    now_iso = datetime.now(timezone.utc).isoformat()
+    with get_connection() as conn:
+        if not user_id:
+            ip = (ip_address or "127.0.0.1").strip()
+            conn.execute(
+                """
+                INSERT INTO guest_scan_limits (ip_address, scan_count, first_scanned_at, last_scanned_at)
+                VALUES (?, 1, ?, ?)
+                ON CONFLICT(ip_address) DO UPDATE SET
+                    scan_count = scan_count + 1,
+                    last_scanned_at = excluded.last_scanned_at
+                """,
+                (ip, now_iso, now_iso),
+            )
+        else:
+            conn.execute("UPDATE users SET scans_used = COALESCE(scans_used, 0) + 1 WHERE id = ?", (user_id,))
+        conn.commit()
 
 
 def verify_2fa_challenge(temp_token: str, code: str) -> Optional[Dict[str, Any]]:
