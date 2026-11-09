@@ -507,6 +507,61 @@ def get_user_searches(request: Request, limit: int = 50) -> dict[str, Any]:
     return {"searches": searches, "total": len(searches), "user": user}
 
 
+# --- Admin Security Fleet & Management Endpoints ---
+
+class RoleUpdateRequest(BaseModel):
+    role: str = Field(pattern=r"^(admin|user)$")
+
+
+@app.get("/api/admin/metrics")
+def admin_metrics(request: Request) -> dict[str, Any]:
+    metrics = db.get_admin_metrics()
+    _, active_version = _load_active_model()
+    metrics["active_model"] = active_version
+    metrics["feature_count"] = len(FEATURE_NAMES)
+    return metrics
+
+
+@app.get("/api/admin/users")
+def admin_users(request: Request) -> dict[str, Any]:
+    users = db.list_all_users()
+    return {"users": users, "total": len(users)}
+
+
+@app.delete("/api/admin/users/{user_id}")
+def admin_delete_user(user_id: int, request: Request) -> dict[str, Any]:
+    user = db.get_user_by_id(user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="Operator was not found.")
+    if user["email"] == "admin@sentinelai.security":
+        raise HTTPException(status_code=403, detail="The root superadmin account cannot be removed.")
+    db.delete_user(user_id)
+    return {"status": "deleted", "user_id": user_id}
+
+
+@app.patch("/api/admin/users/{user_id}/role")
+def admin_update_role(user_id: int, payload: RoleUpdateRequest, request: Request) -> dict[str, Any]:
+    user = db.get_user_by_id(user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="Operator was not found.")
+    db.update_user_role(user_id, payload.role)
+    return {"status": "updated", "user_id": user_id, "role": payload.role}
+
+
+@app.get("/api/admin/searches")
+def admin_searches(request: Request, limit: int = 100, verdict: str | None = None) -> dict[str, Any]:
+    searches = db.get_search_history(user_id=None, limit=limit)
+    if verdict and verdict != "ALL":
+        searches = [s for s in searches if verdict.lower() in s["verdict"].lower()]
+    return {"searches": searches, "total": len(searches)}
+
+
+@app.delete("/api/admin/searches/{search_id}")
+def admin_delete_search(search_id: int, request: Request) -> dict[str, Any]:
+    db.delete_search_entry(search_id)
+    return {"status": "deleted", "search_id": search_id}
+
+
 @app.delete("/api/history")
 def clear_history() -> dict[str, str]:
     ANALYSIS_HISTORY.unlink(missing_ok=True)
@@ -865,6 +920,15 @@ def auth_page() -> FileResponse:
     if not auth_path.is_file():
         raise HTTPException(status_code=404, detail="Auth page was not found.")
     return FileResponse(auth_path)
+
+
+@app.get("/admin")
+@app.get("/admin.html")
+def admin_page() -> FileResponse:
+    admin_path = ROOT_DIR / "admin.html"
+    if not admin_path.is_file():
+        raise HTTPException(status_code=404, detail="Admin portal was not found.")
+    return FileResponse(admin_path)
 
 
 @app.get("/popup/{asset_path:path}")

@@ -8,6 +8,7 @@
     { "source": "/demo", "destination": "/demo.html" },
     { "source": "/landing", "destination": "/index.html" },
     { "source": "/auth", "destination": "/auth.html" },
-    { "source": "/login", "destination": "/auth.html" }
+    { "source": "/login", "destination": "/auth.html" },
+    { "source": "/admin", "destination": "/admin.html" }
   ]
 }
