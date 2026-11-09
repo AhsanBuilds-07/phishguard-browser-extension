@@ -6,6 +6,8 @@
     { "source": "/dashboard.js", "destination": "/dashboard/dashboard.js" },
     { "source": "/dashboard", "destination": "/dashboard/index.html" },
     { "source": "/demo", "destination": "/demo.html" },
-    { "source": "/landing", "destination": "/index.html" }
+    { "source": "/landing", "destination": "/index.html" },
+    { "source": "/auth", "destination": "/auth.html" },
+    { "source": "/login", "destination": "/auth.html" }
   ]
 }

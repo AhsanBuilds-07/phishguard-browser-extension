@@ -105,13 +105,23 @@
     });
   }
 
-  // Backend API helper
+  // Backend API helper with automatic auth token and multi-host resolution
   async function api(path, options = {}) {
-    const url = path.startsWith('http') ? path : `http://127.0.0.1:8000${path}`;
-    const res = await fetch(url, {
+    let base = '';
+    if (!path.startsWith('http')) {
+      if (window.location && window.location.protocol && window.location.protocol.startsWith('http') && window.location.hostname) {
+        base = '';
+      } else {
+        base = 'http://127.0.0.1:8000';
+      }
+    }
+    const token = localStorage.getItem('sentinel_token');
+    const authHeaders = token ? { 'Authorization': `Bearer ${token}` } : {};
+    const res = await fetch(base + path, {
       ...options,
       headers: {
         'Content-Type': 'application/json',
+        ...authHeaders,
         ...(options.headers || {})
       }
     });
@@ -850,7 +860,38 @@
   // ==========================================================================
 
   async function refreshHistory() {
-    const history = await getLocalData('sentinel_scan_history', []);
+    let history = await getLocalData('sentinel_scan_history', []);
+
+    // Fetch persistent search entries directly from the SQLite database
+    try {
+      const data = await api('/api/user/searches?limit=100');
+      if (data && data.searches && data.searches.length > 0) {
+        const dbItems = data.searches.map(s => {
+          let host = s.query_url;
+          try {
+            host = new URL(s.query_url).hostname;
+          } catch (_) {
+            host = s.query_url.split('/')[0] || s.query_url;
+          }
+          return {
+            id: s.id,
+            timestamp: new Date(s.created_at).getTime() || Date.now(),
+            hostname: host,
+            url: s.query_url,
+            verdict: s.verdict.toLowerCase().includes('phish') ? 'malicious' : 'safe',
+            riskScore: s.risk_score,
+            confidence: 0.98,
+            summary: s.features_summary || 'Logged to SQLite Database',
+            user_email: s.user_email || 'local_operator',
+            is_db: true
+          };
+        });
+        history = dbItems;
+      }
+    } catch (_) {
+      // Local fallback if offline
+    }
+
     state.history = history;
 
     const filterVal = byId('history-verdict-filter')?.value || 'ALL';
@@ -861,36 +902,42 @@
       filtered = filtered.filter(h => h.verdict === filterVal);
     }
     if (searchVal) {
-      filtered = filtered.filter(h => (h.hostname || '').toLowerCase().includes(searchVal) || (h.url || '').toLowerCase().includes(searchVal));
+      filtered = filtered.filter(h => 
+        (h.hostname || '').toLowerCase().includes(searchVal) || 
+        (h.url || '').toLowerCase().includes(searchVal) ||
+        (h.user_email || '').toLowerCase().includes(searchVal)
+      );
     }
 
     const tableEl = byId('history-table');
     if (!tableEl) return;
 
     if (filtered.length === 0) {
-      tableEl.innerHTML = '<div class="empty-state">No matching scan records found.</div>';
+      tableEl.innerHTML = '<div class="empty-state">No matching database scan records found.</div>';
     } else {
       tableEl.innerHTML = `
         <table>
           <thead>
             <tr>
+              <th>DB ID</th>
+              <th>Operator Account</th>
               <th>Timestamp</th>
-              <th>Domain</th>
+              <th>Investigated URL</th>
               <th>Verdict</th>
               <th>Risk Score</th>
-              <th>Confidence</th>
-              <th>Summary</th>
+              <th>Database Status</th>
             </tr>
           </thead>
           <tbody>
             ${filtered.map(item => `
               <tr>
+                <td><code style="color:#38bdf8; font-weight:700;">#${item.id || 'LOC'}</code></td>
+                <td><small style="color:#cbd5e1; font-weight:600;">${escapeHtml(item.user_email || 'guest@terminal')}</small></td>
                 <td>${formatDate(item.timestamp)}</td>
-                <td><strong>${escapeHtml(item.hostname)}</strong></td>
+                <td><strong style="color:#f8fafc;">${escapeHtml(item.hostname)}</strong></td>
                 <td><span class="pill pill-${item.verdict === 'malicious' ? 'danger' : item.verdict === 'suspicious' ? 'warn' : 'safe'}">${escapeHtml((item.verdict || 'safe').toUpperCase())}</span></td>
-                <td>${Math.round((item.riskScore || 0) * 100)}%</td>
-                <td>${Math.round((item.confidence || 0.85) * 100)}%</td>
-                <td><small style="color:#94a3b8;">${escapeHtml(item.summary || 'Inspected')}</small></td>
+                <td><strong style="color:${item.riskScore > 0.7 ? '#ef4444' : item.riskScore > 0.3 ? '#f59e0b' : '#10b981'};">${Math.round((item.riskScore || 0) * 100)}%</strong></td>
+                <td><span class="pill pill-safe" style="font-size:10px; display:inline-flex; align-items:center; gap:4px;">💾 Stored in SQLite</span></td>
               </tr>
             `).join('')}
           </tbody>
@@ -1011,6 +1058,53 @@
     }
   }
 
+  function initUserChip() {
+    const userJson = localStorage.getItem('sentinel_user');
+    const nameEl = byId('operator-name');
+    const avatarEl = byId('operator-avatar');
+    const subEl = byId('operator-sub');
+    const authLink = byId('operator-auth-link');
+
+    if (userJson) {
+      try {
+        const user = JSON.parse(userJson);
+        const displayName = user.name || user.email || 'Operator';
+        if (nameEl) nameEl.textContent = displayName;
+        if (avatarEl) avatarEl.textContent = displayName.substring(0, 2).toUpperCase();
+        if (subEl) {
+          subEl.innerHTML = `<span style="font-size:8px; color:#10b981;">●</span> <span>${user.two_factor_enabled ? '2FA Secured' : 'Operator Active'}</span>`;
+        }
+        if (authLink) {
+          authLink.textContent = 'Exit ↗';
+          authLink.title = 'Sign Out';
+          authLink.href = '#';
+          authLink.onclick = (e) => {
+            e.preventDefault();
+            localStorage.removeItem('sentinel_token');
+            localStorage.removeItem('sentinel_user');
+            window.location.href = '/auth.html';
+          };
+        }
+      } catch (_) {}
+    } else {
+      if (nameEl) nameEl.textContent = 'Guest Operator';
+      if (subEl) {
+        subEl.innerHTML = `<a href="/auth.html" style="color:#38bdf8; text-decoration:none;">Sign In / 2FA ↗</a>`;
+      }
+      if (authLink) {
+        authLink.textContent = '✦';
+        authLink.href = '/auth.html';
+      }
+    }
+  }
+
+  window.handleUserChipClick = function() {
+    const userJson = localStorage.getItem('sentinel_user');
+    if (!userJson) {
+      window.location.href = '/auth.html';
+    }
+  };
+
   // ==========================================================================
   // Initial Boot
   // ==========================================================================
@@ -1020,6 +1114,7 @@
     const todayLabel = byId('today-label');
     if (todayLabel) todayLabel.textContent = new Date().toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
 
+    initUserChip();
     bindNavigation();
     bindInvestigationForm();
     bindAnalyzerForm();

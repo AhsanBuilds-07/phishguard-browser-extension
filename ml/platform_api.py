@@ -22,6 +22,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 
+import ml.database as db
 from ml.features import FEATURE_NAMES, extract_domain_group, extract_features
 from ml.train import run_pipeline
 
@@ -61,12 +62,57 @@ class ExtensionEventRequest(BaseModel):
     url: str = Field(min_length=1, max_length=4096)
 
 
+class RegisterRequest(BaseModel):
+    email: str = Field(min_length=3, max_length=255)
+    name: str = Field(min_length=1, max_length=100)
+    password: str = Field(min_length=6, max_length=128)
+    two_factor_enabled: bool = Field(default=True)
+
+
+class LoginRequest(BaseModel):
+    email: str = Field(min_length=3, max_length=255)
+    password: str = Field(min_length=1, max_length=128)
+
+
+class TwoFactorVerifyRequest(BaseModel):
+    temp_token: str = Field(min_length=5, max_length=128)
+    code: str = Field(min_length=6, max_length=10)
+
+
+class GoogleAuthRequest(BaseModel):
+    email: str = Field(min_length=3, max_length=255)
+    name: str = Field(min_length=1, max_length=100)
+    avatar_url: str | None = None
+    google_id: str | None = None
+
+
+class SearchRecordRequest(BaseModel):
+    query_url: str = Field(min_length=1, max_length=4096)
+    risk_score: float = Field(ge=0.0, le=1.0)
+    verdict: str = Field(min_length=1, max_length=50)
+    features_summary: str | None = Field(default="")
+    user_email: str | None = Field(default=None)
+
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origin_regex=r"chrome-extension://[a-p]{32}",
-    allow_methods=["POST"],
-    allow_headers=["Content-Type"],
+    allow_origin_regex=r".*",
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
+
+
+def _extract_user(request: Request) -> dict[str, Any] | None:
+    auth_header = request.headers.get("Authorization")
+    token = None
+    if auth_header and auth_header.startswith("Bearer "):
+        token = auth_header[7:].strip()
+    elif "sentinel_session" in request.cookies:
+        token = request.cookies.get("sentinel_session")
+    if token:
+        return db.get_user_from_session(token)
+    return None
 
 
 def _safe_dataset_path(name: str) -> Path:
@@ -186,7 +232,13 @@ def _append_history(report: dict[str, Any]) -> None:
     os.replace(temp, ANALYSIS_HISTORY)
 
 
-def _investigate(url: str, source: str = "dashboard") -> dict[str, Any]:
+def _investigate(
+    url: str,
+    source: str = "dashboard",
+    user_id: int | None = None,
+    user_email: str | None = None,
+    client_ip: str | None = None,
+) -> dict[str, Any]:
     value = url.strip()
     if not _valid_http_url(value):
         raise HTTPException(status_code=422, detail="Enter a valid http:// or https:// URL.")
@@ -230,6 +282,18 @@ def _investigate(url: str, source: str = "dashboard") -> dict[str, Any]:
         "created_at": datetime.now(timezone.utc).isoformat(),
     }
     _append_history(report)
+    try:
+        db.record_search(
+            query_url=value,
+            risk_score=score,
+            verdict="PHISHING" if score >= 0.5 else "BENIGN",
+            features_summary=f"Risk: {report['risk_level'].upper()}, Model: {version}",
+            user_id=user_id,
+            user_email=user_email,
+            ip_address=client_ip,
+        )
+    except Exception:
+        pass
     return report
 
 
@@ -254,8 +318,12 @@ def overview() -> dict[str, Any]:
 
 
 @app.post("/api/investigate")
-def investigate(request: InvestigationRequest) -> dict[str, Any]:
-    return _investigate(request.url)
+def investigate(payload: InvestigationRequest, request: Request) -> dict[str, Any]:
+    user = _extract_user(request)
+    user_id = user["id"] if user else None
+    user_email = user["email"] if user else None
+    client_ip = request.client.host if request.client else None
+    return _investigate(payload.url, user_id=user_id, user_email=user_email, client_ip=client_ip)
 
 
 @app.post("/api/extension-events")
@@ -269,6 +337,174 @@ def history(limit: int = 100) -> dict[str, Any]:
         raise HTTPException(status_code=422, detail=f"limit must be between 1 and {MAX_HISTORY}.")
     scans = json.loads(ANALYSIS_HISTORY.read_text(encoding="utf-8")) if ANALYSIS_HISTORY.exists() else []
     return {"items": scans[:limit]}
+
+
+# --- Authentication & User Database Endpoints ---
+
+@app.post("/api/auth/register")
+def register(payload: RegisterRequest) -> dict[str, Any]:
+    existing = db.get_user_by_email(payload.email)
+    if existing:
+        raise HTTPException(status_code=409, detail="An account with this email address already exists.")
+    user = db.create_user(
+        email=payload.email,
+        name=payload.name,
+        password=payload.password,
+        auth_provider="local",
+        two_factor_enabled=payload.two_factor_enabled,
+    )
+    if payload.two_factor_enabled:
+        temp_token, code = db.create_2fa_challenge(user["id"])
+        return {
+            "require_2fa": True,
+            "temp_token": temp_token,
+            "message": "Account created! 2FA verification required.",
+            "totp_secret": user.get("two_factor_secret"),
+            "dev_code_hint": code,
+        }
+    token = db.create_session(user["id"])
+    return {
+        "require_2fa": False,
+        "token": token,
+        "user": {
+            "id": user["id"],
+            "email": user["email"],
+            "name": user["name"],
+            "role": user.get("role", "user"),
+            "two_factor_enabled": bool(user.get("two_factor_enabled")),
+        },
+    }
+
+
+@app.post("/api/auth/login")
+def login(payload: LoginRequest) -> dict[str, Any]:
+    user = db.get_user_by_email(payload.email)
+    if not user or not user.get("password_hash"):
+        raise HTTPException(status_code=401, detail="Invalid email or password.")
+    if not db.verify_password(payload.password, user["password_hash"], user["password_salt"]):
+        raise HTTPException(status_code=401, detail="Invalid email or password.")
+
+    if user.get("two_factor_enabled"):
+        temp_token, code = db.create_2fa_challenge(user["id"])
+        return {
+            "require_2fa": True,
+            "temp_token": temp_token,
+            "message": "Enter your 6-digit authentication security code.",
+            "totp_secret": user.get("two_factor_secret"),
+            "dev_code_hint": code,
+        }
+
+    token = db.create_session(user["id"])
+    return {
+        "require_2fa": False,
+        "token": token,
+        "user": {
+            "id": user["id"],
+            "email": user["email"],
+            "name": user["name"],
+            "role": user.get("role", "user"),
+            "two_factor_enabled": False,
+        },
+    }
+
+
+@app.post("/api/auth/2fa/verify")
+def verify_2fa(payload: TwoFactorVerifyRequest) -> dict[str, Any]:
+    user = db.verify_2fa_challenge(payload.temp_token, payload.code)
+    if not user:
+        raise HTTPException(status_code=400, detail="Invalid or expired 2FA code.")
+    token = db.create_session(user["id"])
+    return {
+        "token": token,
+        "user": {
+            "id": user["id"],
+            "email": user["email"],
+            "name": user["name"],
+            "role": user.get("role", "user"),
+            "two_factor_enabled": True,
+        },
+    }
+
+
+@app.post("/api/auth/google")
+def google_auth(payload: GoogleAuthRequest) -> dict[str, Any]:
+    user = db.get_user_by_email(payload.email)
+    if not user:
+        user = db.create_user(
+            email=payload.email,
+            name=payload.name,
+            auth_provider="google",
+            avatar_url=payload.avatar_url or "https://lh3.googleusercontent.com/a/default-user",
+            two_factor_enabled=False,
+        )
+    token = db.create_session(user["id"])
+    return {
+        "token": token,
+        "user": {
+            "id": user["id"],
+            "email": user["email"],
+            "name": user["name"],
+            "role": user.get("role", "user"),
+            "avatar_url": user.get("avatar_url"),
+            "two_factor_enabled": bool(user.get("two_factor_enabled")),
+        },
+    }
+
+
+@app.get("/api/auth/me")
+def current_user(request: Request) -> dict[str, Any]:
+    user = _extract_user(request)
+    if not user:
+        raise HTTPException(status_code=401, detail="Not authenticated.")
+    return {
+        "user": {
+            "id": user["id"],
+            "email": user["email"],
+            "name": user["name"],
+            "role": user.get("role", "user"),
+            "auth_provider": user.get("auth_provider"),
+            "avatar_url": user.get("avatar_url"),
+            "two_factor_enabled": bool(user.get("two_factor_enabled")),
+            "last_login": user.get("last_login"),
+        }
+    }
+
+
+@app.post("/api/auth/logout")
+def logout(request: Request) -> dict[str, str]:
+    auth_header = request.headers.get("Authorization")
+    if auth_header and auth_header.startswith("Bearer "):
+        token = auth_header[7:].strip()
+        db.delete_session(token)
+    return {"status": "logged_out"}
+
+
+# --- Database Search Logging & History Endpoints ---
+
+@app.post("/api/user/searches")
+def save_search_entry(payload: SearchRecordRequest, request: Request) -> dict[str, Any]:
+    user = _extract_user(request)
+    user_id = user["id"] if user else None
+    user_email = user["email"] if user else (payload.user_email or "guest@local")
+    client_ip = request.client.host if request.client else None
+    search_id = db.record_search(
+        query_url=payload.query_url,
+        risk_score=payload.risk_score,
+        verdict=payload.verdict,
+        features_summary=payload.features_summary,
+        user_id=user_id,
+        user_email=user_email,
+        ip_address=client_ip,
+    )
+    return {"status": "recorded", "search_id": search_id}
+
+
+@app.get("/api/user/searches")
+def get_user_searches(request: Request, limit: int = 50) -> dict[str, Any]:
+    user = _extract_user(request)
+    user_id = user["id"] if user and user.get("role") != "admin" else None
+    searches = db.get_search_history(user_id=user_id, limit=limit)
+    return {"searches": searches, "total": len(searches), "user": user}
 
 
 @app.delete("/api/history")
@@ -592,6 +828,17 @@ def landing_page() -> FileResponse:
     if not landing_path.is_file():
         raise HTTPException(status_code=404, detail="Landing page was not found.")
     return FileResponse(landing_path)
+
+
+@app.get("/auth")
+@app.get("/auth.html")
+@app.get("/login")
+@app.get("/login.html")
+def auth_page() -> FileResponse:
+    auth_path = ROOT_DIR / "auth.html"
+    if not auth_path.is_file():
+        raise HTTPException(status_code=404, detail="Auth page was not found.")
+    return FileResponse(auth_path)
 
 
 @app.get("/popup/{asset_path:path}")

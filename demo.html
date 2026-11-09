@@ -574,6 +574,26 @@
         flags: extracted.flags
       };
 
+      // Persistent Database Logging
+      try {
+        const user = JSON.parse(localStorage.getItem('sentinel_user') || 'null');
+        const token = localStorage.getItem('sentinel_token');
+        fetch('/api/user/searches', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { 'Authorization': 'Bearer ' + token } : {})
+          },
+          body: JSON.stringify({
+            query_url: url,
+            risk_score: riskScore,
+            verdict: riskScore > 0.75 ? 'PHISHING' : riskScore >= 0.4 ? 'SUSPICIOUS' : 'BENIGN',
+            features_summary: `Exploit Testbench (${extracted.flags.length} heuristics)`,
+            user_email: user ? user.email : 'demo_operator@sentinelai'
+          })
+        }).catch(() => {});
+      } catch (_) {}
+
       // 1. Update Feature Table
       const tbody = document.getElementById('features-tbody');
       tbody.innerHTML = `
