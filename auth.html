@@ -605,7 +605,7 @@
     }
 
     .js [data-in] {
-      opacity: 0;
+      opacity: 1;
     }
 
     @media (max-width: 960px) {
@@ -859,8 +859,10 @@
     // --- Entrance ---
     (function intro() {
       const items = document.querySelectorAll('[data-in]');
-      if (!canAnimate) { items.forEach(el => el.style.opacity = 1); return; }
-      gsap.fromTo(items, { opacity: 0, y: 14 }, { opacity: 1, y: 0, duration: 0.9, ease: 'expo.out', stagger: 0.045, delay: 0.05 });
+      items.forEach(el => { el.style.opacity = '1'; });
+      if (canAnimate) {
+        gsap.from(items, { y: 10, duration: 0.5, ease: 'expo.out', stagger: 0.03 });
+      }
     })();
 
     // --- Decorative intercept feed (sample data, not live) ---
@@ -1056,9 +1058,12 @@
       warn.style.display = 'none';
     }
 
-    // Check for guest limit query parameter on load
+    // Check for query parameters on load
     window.addEventListener('DOMContentLoaded', () => {
       const params = new URLSearchParams(window.location.search);
+      if (params.get('tab') === 'register') {
+        switchTab('register');
+      }
       if (params.get('reason') === 'guest_limit') {
         showAlert("Guest scan limit reached (1/1 website scanned). Sign in or register to unlock unlimited threat protection.", true);
       }

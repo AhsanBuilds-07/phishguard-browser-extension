@@ -562,10 +562,10 @@
 
     <!-- Admin Tabs -->
     <nav class="admin-tabs">
-      <button class="tab-trigger active" onclick="switchAdminTab('operators')">1. Operator Fleet (Users)</button>
-      <button class="tab-trigger" onclick="switchAdminTab('database')">2. Global Threat Database</button>
-      <button class="tab-trigger" onclick="switchAdminTab('engine')">3. Model Engine Registry</button>
-      <button class="tab-trigger" onclick="switchAdminTab('otp')">4. Verified OTP Dispatches</button>
+      <button class="tab-trigger active" data-tab="operators" onclick="switchAdminTab('operators')">1. Operator Fleet (Users)</button>
+      <button class="tab-trigger" data-tab="database" onclick="switchAdminTab('database')">2. Global Threat Database</button>
+      <button class="tab-trigger" data-tab="engine" onclick="switchAdminTab('engine')">3. Model Engine Registry</button>
+      <button class="tab-trigger" data-tab="otp" onclick="switchAdminTab('otp')">4. Verified OTP Dispatches</button>
     </nav>
 
     <!-- TAB 1: Operator Management Panel -->
@@ -757,9 +757,20 @@
       alert('Copied to clipboard: ' + str);
     }
 
+    window.addEventListener('DOMContentLoaded', () => {
+      const urlParams = new URLSearchParams(window.location.search);
+      const tabParam = urlParams.get('tab');
+      if (tabParam === 'otp') {
+        switchAdminTab('otp');
+      } else if (tabParam === 'database') {
+        switchAdminTab('database');
+      }
+    });
+
     function switchAdminTab(tab) {
       document.querySelectorAll('.tab-trigger').forEach(b => b.classList.remove('active'));
-      if (event && event.target) event.target.classList.add('active');
+      const activeBtn = document.querySelector(`.tab-trigger[data-tab="${tab}"]`);
+      if (activeBtn) activeBtn.classList.add('active');
 
       document.getElementById('panel-operators').style.display = tab === 'operators' ? 'block' : 'none';
       document.getElementById('panel-database').style.display = tab === 'database' ? 'block' : 'none';
