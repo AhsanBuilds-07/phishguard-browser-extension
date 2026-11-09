@@ -1,0 +1,568 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#080c14">
+  <title>SentinelAI · On-Device AI Cyber Defense & Phishing Shield</title>
+  <link rel="stylesheet" href="dashboard.css">
+  <style>
+    /* Premium Cybersecurity SaaS Landing Styles */
+    :root {
+      --glow-cyan: rgba(56, 189, 248, 0.25);
+      --glow-green: rgba(16, 185, 129, 0.25);
+      --glow-red: rgba(239, 68, 68, 0.25);
+    }
+    body {
+      background: #080c14;
+      color: #f8fafc;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      margin: 0;
+      padding: 0;
+      overflow-x: hidden;
+      line-height: 1.6;
+    }
+    .landing-nav {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 20px 48px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+      background: rgba(8, 12, 20, 0.8);
+      backdrop-filter: blur(16px);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    .landing-brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      text-decoration: none;
+      color: #fff;
+    }
+    .brand-mark-lg {
+      width: 36px;
+      height: 36px;
+      background: linear-gradient(135deg, #0284c7 0%, #2563eb 100%);
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      box-shadow: 0 0 20px rgba(37, 99, 235, 0.4);
+    }
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 28px;
+    }
+    .nav-link-item {
+      color: #94a3b8;
+      text-decoration: none;
+      font-size: 14px;
+      font-weight: 500;
+      transition: color 0.2s;
+    }
+    .nav-link-item:hover {
+      color: #38bdf8;
+    }
+    .nav-cta {
+      background: linear-gradient(135deg, #0ea5e9 0%, #2563eb 100%);
+      color: #fff;
+      padding: 10px 20px;
+      border-radius: 9999px;
+      font-size: 13px;
+      font-weight: 700;
+      text-decoration: none;
+      box-shadow: 0 4px 15px rgba(14, 165, 233, 0.35);
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .nav-cta:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 6px 20px rgba(14, 165, 233, 0.5);
+    }
+
+    /* Hero Section */
+    .hero-section {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 80px 24px 60px;
+      text-align: center;
+      position: relative;
+    }
+    .hero-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(56, 189, 248, 0.1);
+      border: 1px solid rgba(56, 189, 248, 0.3);
+      padding: 6px 14px;
+      border-radius: 9999px;
+      color: #38bdf8;
+      font-size: 12px;
+      font-weight: 700;
+      margin-bottom: 24px;
+      box-shadow: 0 0 20px var(--glow-cyan);
+    }
+    .hero-title {
+      font-size: 56px;
+      font-weight: 900;
+      letter-spacing: -1.5px;
+      line-height: 1.1;
+      margin: 0 auto 20px;
+      max-width: 900px;
+      background: linear-gradient(180deg, #ffffff 40%, #94a3b8 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .hero-title span {
+      background: linear-gradient(135deg, #38bdf8 0%, #10b981 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .hero-desc {
+      font-size: 18px;
+      color: #94a3b8;
+      max-width: 720px;
+      margin: 0 auto 36px;
+      line-height: 1.6;
+    }
+    .hero-btns {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+    .btn-hero-primary {
+      background: #10b981;
+      color: #042f2e;
+      padding: 14px 32px;
+      border-radius: 12px;
+      font-size: 15px;
+      font-weight: 800;
+      text-decoration: none;
+      box-shadow: 0 10px 25px rgba(16, 185, 129, 0.3);
+      transition: all 0.2s;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .btn-hero-primary:hover {
+      background: #34d399;
+      transform: translateY(-2px);
+      box-shadow: 0 15px 30px rgba(16, 185, 129, 0.4);
+    }
+    .btn-hero-secondary {
+      background: #1e293b;
+      color: #f8fafc;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      padding: 14px 28px;
+      border-radius: 12px;
+      font-size: 15px;
+      font-weight: 700;
+      text-decoration: none;
+      transition: all 0.2s;
+    }
+    .btn-hero-secondary:hover {
+      background: #334155;
+      border-color: rgba(255, 255, 255, 0.2);
+    }
+
+    /* Live Features Grid */
+    .features-section {
+      max-width: 1200px;
+      margin: 60px auto;
+      padding: 0 24px;
+    }
+    .section-header {
+      text-align: center;
+      margin-bottom: 48px;
+    }
+    .section-eyebrow {
+      font-size: 12px;
+      font-weight: 800;
+      color: #38bdf8;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      margin-bottom: 8px;
+    }
+    .section-heading {
+      font-size: 36px;
+      font-weight: 800;
+      margin: 0;
+      color: #fff;
+    }
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 24px;
+    }
+    .feature-card {
+      background: #0f172a;
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      border-radius: 16px;
+      padding: 32px;
+      position: relative;
+      overflow: hidden;
+      transition: transform 0.2s, border-color 0.2s;
+    }
+    .feature-card:hover {
+      transform: translateY(-4px);
+      border-color: rgba(56, 189, 248, 0.3);
+    }
+    .feature-icon-wrap {
+      width: 48px;
+      height: 48px;
+      border-radius: 12px;
+      background: rgba(56, 189, 248, 0.1);
+      color: #38bdf8;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      margin-bottom: 20px;
+    }
+    .feature-card h3 {
+      font-size: 20px;
+      font-weight: 700;
+      margin: 0 0 10px 0;
+      color: #fff;
+    }
+    .feature-card p {
+      color: #94a3b8;
+      font-size: 14px;
+      line-height: 1.6;
+      margin: 0;
+    }
+
+    /* Comparison Table */
+    .compare-section {
+      max-width: 1000px;
+      margin: 80px auto;
+      padding: 0 24px;
+    }
+    .compare-table {
+      width: 100%;
+      border-collapse: collapse;
+      background: #0f172a;
+      border-radius: 16px;
+      overflow: hidden;
+      border: 1px solid rgba(255, 255, 255, 0.06);
+    }
+    .compare-table th, .compare-table td {
+      padding: 16px 20px;
+      text-align: left;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+      font-size: 14px;
+    }
+    .compare-table th {
+      background: #1e293b;
+      color: #fff;
+      font-weight: 700;
+    }
+    .highlight-col {
+      background: rgba(56, 189, 248, 0.06);
+      color: #38bdf8;
+      font-weight: 700;
+    }
+
+    /* Pricing Section */
+    .pricing-section {
+      max-width: 1100px;
+      margin: 80px auto;
+      padding: 0 24px;
+    }
+    .pricing-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 28px;
+      margin-top: 40px;
+    }
+    .pricing-card {
+      background: #0f172a;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 20px;
+      padding: 36px 28px;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+    }
+    .pricing-card.featured {
+      border: 2px solid #38bdf8;
+      box-shadow: 0 0 40px var(--glow-cyan);
+    }
+    .popular-tag {
+      position: absolute;
+      top: -12px;
+      right: 24px;
+      background: linear-gradient(135deg, #0ea5e9, #2563eb);
+      color: #fff;
+      font-size: 11px;
+      font-weight: 800;
+      padding: 4px 12px;
+      border-radius: 9999px;
+      letter-spacing: 0.5px;
+    }
+    .price-num {
+      font-size: 44px;
+      font-weight: 900;
+      color: #fff;
+      margin: 16px 0 6px;
+    }
+    .price-num small {
+      font-size: 16px;
+      font-weight: 500;
+      color: #94a3b8;
+    }
+    .pricing-features {
+      list-style: none;
+      padding: 0;
+      margin: 24px 0 32px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      font-size: 14px;
+      color: #cbd5e1;
+    }
+    .pricing-features li {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .check-icon {
+      color: #10b981;
+      font-weight: 800;
+    }
+
+    /* Footer */
+    .landing-footer {
+      border-top: 1px solid rgba(255, 255, 255, 0.06);
+      padding: 40px 24px;
+      text-align: center;
+      color: #64748b;
+      font-size: 13px;
+    }
+  </style>
+</head>
+<body>
+  <!-- Navigation Header -->
+  <header class="landing-nav">
+    <a href="/" class="landing-brand">
+      <div class="brand-mark-lg">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3">
+          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+          <path d="M9 12l2 2 4-4"/>
+        </svg>
+      </div>
+      <div>
+        <strong style="font-size: 16px;">SentinelAI</strong>
+        <small style="display: block; font-size: 10px; color: #38bdf8; font-weight: 700; letter-spacing: 0.5px;">ON-DEVICE DEFENSE</small>
+      </div>
+    </a>
+
+    <nav class="nav-links">
+      <a href="/demo.html" class="nav-link-item">Live Exploit Testbench</a>
+      <a href="/" class="nav-link-item">Command Center</a>
+      <a href="#features" class="nav-link-item">Features</a>
+      <a href="#comparison" class="nav-link-item">Why SentinelAI</a>
+      <a href="#pricing" class="nav-link-item">Pricing</a>
+      <a href="/demo.html" class="nav-cta">Test Live Demo ↗</a>
+    </nav>
+  </header>
+
+  <!-- Hero Banner -->
+  <section class="hero-section">
+    <div class="hero-badge">
+      <span class="pulse-dot"></span> MANIFEST V3 · 100% ON-DEVICE AI · ZERO TELEMETRY
+    </div>
+    <h1 class="hero-title">Defend Every Click.<br><span>Without Giving Up Your Privacy.</span></h1>
+    <p class="hero-desc">
+      The world's first on-device browser cybersecurity shield powered by a transpiled Scikit-Learn Random Forest ensemble. Intercepts brand spoofing, deceptive homoglyphs, and credential harvesting in under 1 millisecond.
+    </p>
+
+    <div class="hero-btns">
+      <a href="/demo.html" class="btn-hero-primary">
+        <span>⚡ Launch Interactive Live Demo</span>
+        <span>→</span>
+      </a>
+      <a href="/" class="btn-hero-secondary">
+        <span>Open Command Center</span>
+      </a>
+    </div>
+  </section>
+
+  <!-- Core Features -->
+  <section class="features-section" id="features">
+    <div class="section-header">
+      <div class="section-eyebrow">DEFENSE ARSENAL</div>
+      <h2 class="section-heading">Engineered for the Modern Threat Landscape</h2>
+    </div>
+
+    <div class="features-grid">
+      <div class="feature-card">
+        <div class="feature-icon-wrap">🛡</div>
+        <h3>100% On-Device AI</h3>
+        <p>Your browsing history never leaves your device. 14 canonical lexical features and Random Forest inference execute directly in Chrome's V8 engine on CPU in &lt;1ms.</p>
+      </div>
+
+      <div class="feature-card">
+        <div class="feature-icon-wrap">🔍</div>
+        <h3>Brand Impersonation Engine</h3>
+        <p>Real-time protection against subdomain hijacking and Levenshtein typosquatting targeting 16 major brands (PayPal, Apple, Google, Chase, Amazon, Steam, and more).</p>
+      </div>
+
+      <div class="feature-card">
+        <div class="feature-icon-wrap">⚡</div>
+        <h3>Unicode Homoglyph Defense</h3>
+        <p>Detects deceptive Cyrillic and Greek lookalike character substitutions and Internationalized Domain Names (Punycode <code>xn--</code>) before credentials are submitted.</p>
+      </div>
+
+      <div class="feature-card">
+        <div class="feature-icon-wrap">🔐</div>
+        <h3>Credential Guard</h3>
+        <p>Inspects form destinations in the DOM. Immediately disables password submission if an action points to a raw IP address or unencrypted destination.</p>
+      </div>
+
+      <div class="feature-card">
+        <div class="feature-icon-wrap">📜</div>
+        <h3>Explainable Attack Chains</h3>
+        <p>No cryptic threat scores. SentinelAI generates a human-readable Scam Story separating verified facts from inferred attacker tactics and potential impact.</p>
+      </div>
+
+      <div class="feature-card">
+        <div class="feature-icon-wrap">⌘</div>
+        <h3>Built-in Model Studio</h3>
+        <p>Train custom Random Forest models with domain-aware splitting on registered domains (eTLD+1), benchmark on real datasets, and roll back versions instantly.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Competitor Comparison -->
+  <section class="compare-section" id="comparison">
+    <div class="section-header">
+      <div class="section-eyebrow">HEAD-TO-HEAD</div>
+      <h2 class="section-heading">How SentinelAI Compares to Industry Titans</h2>
+    </div>
+
+    <table class="compare-table">
+      <thead>
+        <tr>
+          <th>Capability</th>
+          <th class="highlight-col">SentinelAI Shield</th>
+          <th>Guardio</th>
+          <th>VT4Browsers</th>
+          <th>Malwarebytes</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>Data Privacy</strong></td>
+          <td class="highlight-col">100% On-Device (0 Telemetry)</td>
+          <td>Cloud Lookup</td>
+          <td>Cloud Lookup</td>
+          <td>Cloud Telemetry</td>
+        </tr>
+        <tr>
+          <td><strong>Inference Latency</strong></td>
+          <td class="highlight-col">&lt; 1 millisecond</td>
+          <td>250ms - 800ms</td>
+          <td>500ms - 2,000ms</td>
+          <td>300ms - 1,000ms</td>
+        </tr>
+        <tr>
+          <td><strong>Brand Impersonation</strong></td>
+          <td class="highlight-col">Subdomain + Levenshtein (16 Brands)</td>
+          <td>Heuristic Cloud DB</td>
+          <td>Hash / URL Lookup</td>
+          <td>Domain Blacklist</td>
+        </tr>
+        <tr>
+          <td><strong>Explainable Attack Chain</strong></td>
+          <td class="highlight-col">Facts vs Inferred Story</td>
+          <td>Simple Warning</td>
+          <td>Vendor Table</td>
+          <td>Generic Alert</td>
+        </tr>
+        <tr>
+          <td><strong>Reversible User Override</strong></td>
+          <td class="highlight-col">Yes (Sticky Safety Pill)</td>
+          <td>Hard Bypass</td>
+          <td>None</td>
+          <td>Whitelist Only</td>
+        </tr>
+        <tr>
+          <td><strong>Built-in Model Training Lab</strong></td>
+          <td class="highlight-col">Yes (Python + m2cgen export)</td>
+          <td>No</td>
+          <td>No</td>
+          <td>No</td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- Pricing Plans -->
+  <section class="pricing-section" id="pricing">
+    <div class="section-header">
+      <div class="section-eyebrow">TRANSPARENT MONETIZATION</div>
+      <h2 class="section-heading">Choose Your Protection Plan</h2>
+    </div>
+
+    <div class="pricing-grid">
+      <!-- Community Free -->
+      <div class="pricing-card">
+        <h3>Community Edition</h3>
+        <p style="color:#94a3b8; font-size:13px;">On-device AI protection for privacy-conscious individuals.</p>
+        <div class="price-num">$0 <small>/ forever</small></div>
+        <ul class="pricing-features">
+          <li><span class="check-icon">✓</span> 100% On-Device Random Forest Shield</li>
+          <li><span class="check-icon">✓</span> 14 Canonical Heuristic Metrics</li>
+          <li><span class="check-icon">✓</span> Brand Impersonation Protection (16 Brands)</li>
+          <li><span class="check-icon">✓</span> Credential Guard & DOM Form Blocking</li>
+          <li><span class="check-icon">✓</span> Zero Telemetry Guarantee</li>
+        </ul>
+        <a href="/demo.html" class="button button-quiet" style="text-align:center; display:block;">Current Version</a>
+      </div>
+
+      <!-- Pro Edition -->
+      <div class="pricing-card featured">
+        <span class="popular-tag">MOST POPULAR</span>
+        <h3 style="color:#38bdf8;">SentinelAI Pro</h3>
+        <p style="color:#94a3b8; font-size:13px;">Maximum defense with multi-provider threat intelligence.</p>
+        <div class="price-num">$4.99 <small>/ month</small></div>
+        <ul class="pricing-features">
+          <li><span class="check-icon">✓</span> <strong>Everything in Community</strong></li>
+          <li><span class="check-icon">✓</span> Live Cloud Threat Feeds (VirusTotal, GSB)</li>
+          <li><span class="check-icon">✓</span> Dark Web Email & Password Leak Monitor</li>
+          <li><span class="check-icon">✓</span> SMS & Phishing Email Batch Link Scanner</li>
+          <li><span class="check-icon">✓</span> Priority Weekly AI Weights Auto-Update</li>
+        </ul>
+        <button class="button button-primary" onclick="alert('Stripe Checkout Portal Integration: Connecting your subscription...')" style="width:100%;">Upgrade to Pro</button>
+      </div>
+
+      <!-- Teams Edition -->
+      <div class="pricing-card">
+        <h3>Enterprise Teams</h3>
+        <p style="color:#94a3b8; font-size:13px;">Fleet-wide browser security and compliance for businesses.</p>
+        <div class="price-num">$4.00 <small>/ seat / mo</small></div>
+        <ul class="pricing-features">
+          <li><span class="check-icon">✓</span> <strong>Everything in Pro</strong></li>
+          <li><span class="check-icon">✓</span> Centralized Security Admin Dashboard</li>
+          <li><span class="check-icon">✓</span> Organization-wide Whitelist Management</li>
+          <li><span class="check-icon">✓</span> SOC2 & ISO 27001 Threat Audit Logs</li>
+          <li><span class="check-icon">✓</span> Dedicated Security Support SLA</li>
+        </ul>
+        <button class="button button-quiet" onclick="alert('Contact Enterprise Sales: enterprise@sentinelai.security')" style="width:100%;">Contact Enterprise</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer class="landing-footer">
+    <p>SentinelAI · Autonomous On-Device Cyber Defense & Phishing Shield</p>
+    <p style="font-size:11px; margin-top:8px;">Zero Telemetry · All Model Inferences Execute on Your Hardware · Manifest V3 Compliant</p>
+  </footer>
+</body>
+</html>

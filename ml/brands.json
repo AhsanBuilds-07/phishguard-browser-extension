@@ -1,0 +1,102 @@
+{
+  "version": "1.0.0",
+  "description": "Documented brand registry for SentinelAI brand impersonation and typosquatting detection.",
+  "brands": [
+    {
+      "name": "Google",
+      "canonical_domains": ["google.com", "google.co.uk", "google.ca", "google.de", "google.fr", "google.com.au", "google.co.in", "accounts.google.com"],
+      "keywords": ["google", "gmail", "googledrive", "googleworkspace"],
+      "category": "Technology & Identity"
+    },
+    {
+      "name": "Microsoft",
+      "canonical_domains": ["microsoft.com", "office.com", "live.com", "outlook.com", "office365.com", "login.microsoftonline.com", "azure.com"],
+      "keywords": ["microsoft", "office365", "outlook", "onedrive", "sharepoint", "azure"],
+      "category": "Enterprise & Cloud"
+    },
+    {
+      "name": "Apple",
+      "canonical_domains": ["apple.com", "icloud.com", "appleid.apple.com"],
+      "keywords": ["apple", "appleid", "icloud", "itunes", "findmy"],
+      "category": "Consumer Technology"
+    },
+    {
+      "name": "Amazon",
+      "canonical_domains": ["amazon.com", "amazon.co.uk", "amazon.de", "amazon.fr", "amazon.co.jp", "aws.amazon.com"],
+      "keywords": ["amazon", "aws", "primevideo"],
+      "category": "E-Commerce & Cloud"
+    },
+    {
+      "name": "PayPal",
+      "canonical_domains": ["paypal.com", "paypal.me"],
+      "keywords": ["paypal", "paypalme"],
+      "category": "Financial Services"
+    },
+    {
+      "name": "Meta / Facebook",
+      "canonical_domains": ["facebook.com", "instagram.com", "whatsapp.com", "meta.com", "messenger.com"],
+      "keywords": ["facebook", "instagram", "whatsapp", "meta"],
+      "category": "Social Media"
+    },
+    {
+      "name": "Netflix",
+      "canonical_domains": ["netflix.com"],
+      "keywords": ["netflix"],
+      "category": "Entertainment & Streaming"
+    },
+    {
+      "name": "Chase Bank",
+      "canonical_domains": ["chase.com"],
+      "keywords": ["chase", "chasebank"],
+      "category": "Banking"
+    },
+    {
+      "name": "Bank of America",
+      "canonical_domains": ["bankofamerica.com", "bofa.com"],
+      "keywords": ["bankofamerica", "bofa"],
+      "category": "Banking"
+    },
+    {
+      "name": "Wells Fargo",
+      "canonical_domains": ["wellsfargo.com"],
+      "keywords": ["wellsfargo"],
+      "category": "Banking"
+    },
+    {
+      "name": "Coinbase",
+      "canonical_domains": ["coinbase.com"],
+      "keywords": ["coinbase"],
+      "category": "Cryptocurrency"
+    },
+    {
+      "name": "Binance",
+      "canonical_domains": ["binance.com"],
+      "keywords": ["binance"],
+      "category": "Cryptocurrency"
+    },
+    {
+      "name": "Steam / Valve",
+      "canonical_domains": ["steampowered.com", "steamcommunity.com", "valvesoftware.com"],
+      "keywords": ["steam", "steampowered", "steamcommunity"],
+      "category": "Gaming"
+    },
+    {
+      "name": "DocuSign",
+      "canonical_domains": ["docusign.com", "docusign.net"],
+      "keywords": ["docusign"],
+      "category": "Productivity & Legal"
+    },
+    {
+      "name": "DHL",
+      "canonical_domains": ["dhl.com", "dhl.de"],
+      "keywords": ["dhl", "dhl-express", "dhlexpress"],
+      "category": "Logistics & Shipping"
+    },
+    {
+      "name": "USPS",
+      "canonical_domains": ["usps.com"],
+      "keywords": ["usps"],
+      "category": "Logistics & Shipping"
+    }
+  ]
+}

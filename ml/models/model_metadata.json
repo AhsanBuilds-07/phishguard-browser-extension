@@ -1,146 +1,145 @@
 {
-  "model_version": "rf-20261105-143019-10ebfe",
+  "model_version": "rf-20261109-063632",
   "model_type": "RandomForestClassifier",
   "transpiler": "m2cgen 0.10.0",
-  "date_trained": "2026-11-05 14:30:20 UTC",
+  "date_trained": "2026-11-09 06:36:33 UTC",
   "hyperparameters": {
-    "n_estimators": 30,
+    "n_estimators": 20,
     "max_depth": 7,
     "min_samples_leaf": 2,
     "max_features": "sqrt",
     "random_state": 42
   },
   "dataset": {
-    "total_samples": 7998,
-    "phishing_samples": 3998,
+    "total_samples": 8000,
+    "phishing_samples": 4000,
     "benign_samples": 4000,
-    "unique_domain_groups": 5380,
+    "unique_domain_groups": 5382,
     "phishing_sources": [
       "Phishing.Database active feed (Mitchell Krogza)",
       "OpenPhish public community feed"
     ],
     "benign_sources": [
       "Majestic Million Top Domains (with path and subdomain enrichment)"
-    ],
-    "source_file": "dataset.csv"
+    ]
   },
   "split_strategy": {
     "type": "GroupShuffleSplit",
     "group_key": "domain_group (eTLD+1 registered domain or IP)",
-    "train_size": 6537,
-    "test_size": 1461,
-    "train_unique_domains": 4304,
-    "test_unique_domains": 1076,
+    "train_size": 6114,
+    "test_size": 1886,
+    "train_unique_domains": 4305,
+    "test_unique_domains": 1077,
     "domain_overlap": 0
   },
   "evaluation_metrics": {
-    "accuracy": 0.9876796714579056,
-    "precision": 0.9955089820359282,
-    "recall": 0.9779411764705882,
-    "f1_score": 0.9866468842729971,
-    "roc_auc": 0.9994784213301198,
-    "pr_auc": 0.9994223167898032,
-    "false_positive_rate": 0.0038412291933418692,
-    "false_negative_rate": 0.022058823529411766,
+    "accuracy": 0.9745493107104984,
+    "precision": 0.9971988795518207,
+    "recall": 0.9595687331536388,
+    "f1_score": 0.978021978021978,
+    "roc_auc": 0.9994630086162708,
+    "pr_auc": 0.99962776149231,
+    "false_positive_rate": 0.0038809831824062097,
+    "false_negative_rate": 0.04043126684636118,
     "confusion_matrix": {
-      "true_negative": 778,
+      "true_negative": 770,
       "false_positive": 3,
-      "false_negative": 15,
-      "true_positive": 665
+      "false_negative": 45,
+      "true_positive": 1068
     }
   },
   "cross_validation_5_fold": {
-    "mean_accuracy": 0.9859971857410882,
-    "std_accuracy": 0.005162682944418344,
-    "mean_f1": 0.9858533544657797,
-    "std_f1": 0.005327985032331243,
-    "mean_roc_auc": 0.9995295860066143,
-    "std_roc_auc": 0.0002801105466933368
+    "mean_accuracy": 0.9858750000000001,
+    "std_accuracy": 0.0065502862532869546,
+    "mean_f1": 0.9857394566631952,
+    "std_f1": 0.006753000729649405,
+    "mean_roc_auc": 0.9995727685770136,
+    "std_roc_auc": 0.00012665425732056164
   },
   "feature_importances": [
     {
       "rank": 1,
-      "name": "url_length",
-      "index": 0,
-      "importance": 0.29652744612778326
+      "name": "is_https",
+      "index": 7,
+      "importance": 0.2657488640971816
     },
     {
       "rank": 2,
-      "name": "is_https",
-      "index": 7,
-      "importance": 0.25198694974746094
+      "name": "num_dots",
+      "index": 2,
+      "importance": 0.24813844094038187
     },
     {
       "rank": 3,
-      "name": "has_ip",
-      "index": 3,
-      "importance": 0.15897051400569348
+      "name": "url_length",
+      "index": 0,
+      "importance": 0.1673159278662208
     },
     {
       "rank": 4,
-      "name": "num_dots",
-      "index": 2,
-      "importance": 0.10915265932633338
+      "name": "has_ip",
+      "index": 3,
+      "importance": 0.13099549861245163
     },
     {
       "rank": 5,
-      "name": "domain_entropy",
-      "index": 13,
-      "importance": 0.05879515239967459
+      "name": "domain_length",
+      "index": 1,
+      "importance": 0.04927727679101326
     },
     {
       "rank": 6,
-      "name": "domain_length",
-      "index": 1,
-      "importance": 0.054329022091953685
+      "name": "domain_entropy",
+      "index": 13,
+      "importance": 0.046452387280542906
     },
     {
       "rank": 7,
-      "name": "num_suspicious_keywords",
-      "index": 9,
-      "importance": 0.028487567582812772
+      "name": "special_char_count",
+      "index": 12,
+      "importance": 0.034004294991070425
     },
     {
       "rank": 8,
-      "name": "special_char_count",
-      "index": 12,
-      "importance": 0.01676589084842457
+      "name": "has_suspicious_tld",
+      "index": 10,
+      "importance": 0.01596983644491698
     },
     {
       "rank": 9,
-      "name": "num_subdomains",
-      "index": 6,
-      "importance": 0.009807282513504545
+      "name": "num_suspicious_keywords",
+      "index": 9,
+      "importance": 0.014588020498268957
     },
     {
       "rank": 10,
-      "name": "has_suspicious_tld",
-      "index": 10,
-      "importance": 0.006320954610540607
+      "name": "num_query_params",
+      "index": 11,
+      "importance": 0.01209837905153551
     },
     {
       "rank": 11,
-      "name": "num_query_params",
-      "index": 11,
-      "importance": 0.005841846369420988
+      "name": "num_subdomains",
+      "index": 6,
+      "importance": 0.010436900544200798
     },
     {
       "rank": 12,
       "name": "num_hyphens",
       "index": 5,
-      "importance": 0.002992577448217547
+      "importance": 0.004915174992449928
     },
     {
       "rank": 13,
       "name": "has_at_symbol",
       "index": 4,
-      "importance": 2.1168291629099177e-05
+      "importance": 5.8997889765293634e-05
     },
     {
       "rank": 14,
       "name": "has_double_slash_in_path",
       "index": 8,
-      "importance": 9.68636550557561e-07
+      "importance": 0.0
     }
   ],
   "feature_schema": [
@@ -163,6 +162,5 @@
     "safe_upper_bound": 0.4,
     "suspicious_lower_bound": 0.4,
     "high_risk_threshold": 0.75
-  },
-  "deployment": "active"
+  }
 }

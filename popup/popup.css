@@ -209,6 +209,13 @@ body {
   border: 1px solid var(--safe-border);
 }
 
+.pill-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
 .pill-danger {
   background: var(--risk-bg);
   color: var(--risk-text);
@@ -218,6 +225,24 @@ body {
 .pill-neutral {
   background: rgba(148, 163, 184, 0.1);
   color: var(--text-muted);
+  border: 1px solid var(--border-subtle);
+}
+
+.hidden {
+  display: none !important;
+}
+
+.confidence-row {
+  margin-top: 4px;
+}
+
+.confidence-tag {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-muted);
+  background: rgba(255, 255, 255, 0.05);
+  padding: 2px 6px;
+  border-radius: 4px;
   border: 1px solid var(--border-subtle);
 }
 

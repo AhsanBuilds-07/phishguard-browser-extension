@@ -3,39 +3,48 @@
  * Background Service Worker (Manifest V3)
  *
  * Responsibilities:
- * 1. Imports the generated scikit-learn inference model via importScripts.
- * 2. Listens to chrome.webNavigation.onCompleted and chrome.tabs updates.
- * 3. Extracts live lexical and structural URL features (IP presence, length, keywords, entropy).
- * 4. Runs local ML prediction via predictPhishingScore(features).
- * 5. Updates extension badge text and colors (SAFE: Green, WARN: Amber, RISK: Red).
- * 6. Persists scan assessments to chrome.storage.local for popup dashboard access.
- * 7. Programmatically injects content.js if risk score > 0.75.
+ * 1. Loads features, trained model, and multi-signal detector via importScripts.
+ * 2. Manages tab-specific scan lifecycle with race-condition & de-duplication locks.
+ * 3. Evaluates multi-signal pipeline: Lexical + ML probabilities + Homographs + Brands + DOM forms.
+ * 4. Produces standardized verdicts: 'safe' | 'suspicious' | 'malicious' | 'unknown'.
+ * 5. Updates tab badges and synchronizes scan history.
+ * 6. Injects and communicates with content scripts.
  */
 
-// Load the generated RandomForest model trained from the labeled URL dataset.
+// Load core dependencies
 if (typeof importScripts === 'function') {
-  importScripts('ml/features.js', 'ml/models/model_exported.js');
+  try {
+    importScripts('ml/features.js', 'ml/models/model_exported.js', 'ml/detector.js');
+  } catch (err) {
+    console.error('[SentinelAI] Failed to importScripts:', err);
+  }
 }
 
 const featureAPI = typeof SentinelFeatures !== 'undefined'
   ? SentinelFeatures
   : (typeof require === 'function' ? require('./ml/features.js') : null);
-const MAX_SCAN_HISTORY = 100;
+
 const modelAPI = typeof SentinelModel !== 'undefined'
   ? SentinelModel
   : (typeof require === 'function' ? require('./ml/models/model_exported.js') : null);
-const ACTIVE_MODEL_VERSION = modelAPI?.MODEL_VERSION || 'rf-20261104-183213';
 
-// In-memory cache for ultra-fast tab lookup
+const detectorAPI = typeof SentinelDetector !== 'undefined'
+  ? SentinelDetector
+  : (typeof require === 'function' ? require('./ml/detector.js') : null);
+
+const ACTIVE_MODEL_VERSION = modelAPI?.MODEL_VERSION || 'rf-20261104-183213';
+const MAX_SCAN_HISTORY = 100;
+
+// Tab caching and race-condition deduplication tracking
 const tabCache = new Map();
+const inFlightScans = new Map(); // tabId -> Promise
+const lastAnalyzedUrlByTab = new Map(); // tabId -> url
+const tabScanSequences = new Map(); // tabId -> sequence number
 
 // ============================================================================
 // Storage Utilities
 // ============================================================================
 
-/**
- * Reads data from chrome.storage.local with a default fallback.
- */
 function getStorage(key, defaultValue = null) {
   return new Promise((resolve) => {
     chrome.storage.local.get([key], (res) => {
@@ -48,18 +57,12 @@ function getStorage(key, defaultValue = null) {
   });
 }
 
-/**
- * Saves a key-value pair to chrome.storage.local.
- */
 function setStorage(key, value) {
   return new Promise((resolve) => {
     chrome.storage.local.set({ [key]: value }, () => resolve());
   });
 }
 
-/**
- * Checks if a hostname is on the user's whitelist.
- */
 async function isWhitelisted(hostname) {
   if (!hostname) return false;
   const list = await getStorage('sentinel_whitelist', []);
@@ -67,34 +70,6 @@ async function isWhitelisted(hostname) {
   return list.some(d => clean === d || clean.endsWith('.' + d));
 }
 
-// ============================================================================
-// URL Feature Extraction
-// ============================================================================
-
-/**
- * Calculates Shannon Entropy of a string to detect algorithmic/DGA domain names.
- * @param {string} text
- * @returns {number}
- */
-function calculateEntropy(text) {
-  if (!text || text.length === 0) return 0.0;
-  const counts = {};
-  for (const char of text) {
-    counts[char] = (counts[char] || 0) + 1;
-  }
-
-  let entropy = 0.0;
-  const len = text.length;
-  for (const char in counts) {
-    const p = counts[char] / len;
-    entropy -= p * Math.log2(p);
-  }
-  return Number(entropy.toFixed(3));
-}
-
-/**
- * Determines whether a URL is internal browser navigation.
- */
 function isInternalUrl(url) {
   if (!url) return true;
   return (
@@ -109,157 +84,117 @@ function isInternalUrl(url) {
   );
 }
 
+// ============================================================================
+// Multi-Signal URL Investigation Engine
+// ============================================================================
+
 /**
  * Extracts the canonical 14-feature vector matching ml/features.py and ml/features.js.
- *
- * @param {string} rawUrl
- * @returns {{ features: object, featureArray: number[], breakdown: object, flags: string[] }}
  */
 function extractUrlFeatures(rawUrl) {
-  try {
-    let cleanUrl = (rawUrl || '').trim();
-    if (!/^[a-zA-Z][a-zA-Z0-9+.-]*:\/\//.test(cleanUrl)) {
-      cleanUrl = `http://${cleanUrl}`;
-    }
-
-    const parsed = new URL(cleanUrl);
-    const hostname = (parsed.hostname || '').replace(/^\[|\]$/g, '').toLowerCase();
-    const pathname = (parsed.pathname || '').toLowerCase();
-    const query = (parsed.search || '').toLowerCase().replace(/^\?/, '');
-    const featureArray = featureAPI.extractFeatures(cleanUrl);
-    const featureValues = Object.fromEntries(
-      featureAPI.FEATURE_NAMES.map((name, index) => [name, featureArray[index]])
-    );
-    const parts = hostname.split('.').filter(Boolean);
-    const tld = parts.length > 0 ? parts[parts.length - 1] : '';
-    const matchedKeywords = featureAPI.SUSPICIOUS_KEYWORDS.filter(keyword =>
-      `${pathname}?${query}`.includes(keyword)
-    );
-    const urlLength = featureValues.url_length;
-    const domainLength = featureValues.domain_length;
-    const numDots = featureValues.num_dots;
-    const hasIp = featureValues.has_ip;
-    const hasAtSymbol = featureValues.has_at_symbol;
-    const numHyphens = featureValues.num_hyphens;
-    const numSubdomains = featureValues.num_subdomains;
-    const isHttps = featureValues.is_https;
-    const hasDoubleSlashInPath = featureValues.has_double_slash_in_path;
-    const suspiciousKeywordsCount = featureValues.num_suspicious_keywords;
-    const hasSuspiciousTld = featureValues.has_suspicious_tld;
-    const numQueryParams = featureValues.num_query_params;
-    const specialChars = featureValues.special_char_count;
-    const domainEntropy = featureValues.domain_entropy;
-
-    const flags = [];
-    if (hasIp === 1) flags.push('Raw IP address used instead of legitimate domain name');
-    if (hasAtSymbol === 1) flags.push('Contains "@" credential-masking delimiter in URL');
-    if (isHttps === 0) flags.push('Unencrypted connection (insecure HTTP scheme)');
-    if (hasSuspiciousTld === 1) flags.push(`High-abuse Top-Level Domain (.${tld}) commonly used in phishing`);
-    if (matchedKeywords.length > 0) flags.push(`Sensitive credential/banking keywords detected: ${matchedKeywords.join(', ')}`);
-    if (numSubdomains >= 2) flags.push(`Excessive subdomain depth (${numSubdomains} levels)`);
-    if (numHyphens >= 2) flags.push(`Excessive hyphens in hostname (${numHyphens}) - typosquatting signal`);
-    if (domainEntropy > 3.5) flags.push(`High algorithmic domain randomness (Shannon entropy: ${domainEntropy})`);
-    if (hasDoubleSlashInPath === 1) flags.push('Open redirection path evasion pattern (//) detected');
-
-    const featureObj = {
-      urlLength,
-      domainLength,
-      numDots,
-      hasIp,
-      hasAtSymbol,
-      numHyphens,
-      numSubdomains,
-      isHttps,
-      hasDoubleSlashInPath,
-      suspiciousKeywordsCount,
-      hasSuspiciousTld,
-      numQueryParams,
-      specialCharCount: specialChars,
-      domainEntropy
-    };
-
-    const breakdown = {
-      hostname,
-      protocol: parsed.protocol,
-      urlLength,
-      domainLength,
-      numDots,
-      hasIp: Boolean(hasIp),
-      hasAtSymbol: Boolean(hasAtSymbol),
-      numHyphens,
-      numSubdomains,
-      isHttps: Boolean(isHttps),
-      hasDoubleSlashInPath: Boolean(hasDoubleSlashInPath),
-      matchedKeywords,
-      tld,
-      hasSuspiciousTld: Boolean(hasSuspiciousTld),
-      numQueryParams,
-      specialChars,
-      domainEntropy
-    };
-
-    return { features: featureObj, featureArray, breakdown, flags };
-  } catch (err) {
-    return {
-      features: {},
-      featureArray: new Array(14).fill(0),
-      breakdown: { hostname: 'Invalid URL', protocol: '' },
-      flags: ['Invalid or unparseable URL']
-    };
-  }
-}
-
-/**
- * Produces an explainable investigation using the deployed trained model.
- * Network reputation and certificate validation are deliberately not inferred
- * from URL-only evidence.
- */
-function investigateUrl(rawUrl) {
-  if (!modelAPI) {
-    throw new Error('The trained phishing model is unavailable.');
-  }
-  const { features, featureArray, breakdown, flags } = extractUrlFeatures(rawUrl);
-  if (featureArray.length !== 14 || !breakdown.hostname || breakdown.hostname === 'Invalid URL') {
-    throw new Error('Enter a valid HTTP or HTTPS URL to investigate.');
-  }
-
-  const probabilities = modelAPI.predictProba(featureArray);
-  const riskScore = Number(probabilities[1].toFixed(4));
-  const riskLevel = riskScore > 0.75 ? 'RISK' : riskScore >= 0.40 ? 'WARN' : 'SAFE';
-  const evidence = [...flags];
-  if (riskScore >= 0.40 && evidence.length === 0) {
-    evidence.push('The trained model identified a suspicious combination of URL structure features.');
-  }
-
+  let clean = (rawUrl || '').trim();
+  if (!/^[a-zA-Z][a-zA-Z0-9+.-]*:\/\//.test(clean)) clean = 'http://' + clean;
+  let hostname = '';
+  try { hostname = new URL(clean).hostname; } catch (e) {}
+  const featureArray = featureAPI.extractFeatures(clean);
+  const features = featureAPI.extractFeaturesDict(clean);
   return {
-    url: rawUrl.trim(),
-    hostname: breakdown.hostname,
-    riskScore,
-    riskLevel,
-    statusText: riskLevel === 'RISK'
-      ? 'The trained model estimates a high phishing probability. Avoid entering credentials.'
-      : riskLevel === 'WARN'
-        ? 'The trained model found signals that warrant caution.'
-        : 'The trained model found a low phishing probability from the available URL features.',
-    modelVersion: ACTIVE_MODEL_VERSION,
-    modelType: 'RandomForestClassifier',
-    probabilities: { benign: probabilities[0], phishing: probabilities[1] },
-    featureSchema: modelAPI.FEATURE_NAMES,
+    featureArray,
     features,
-    breakdown,
-    evidence,
-    limitations: [
-      'This report evaluates URL structure only; it does not query live threat-intelligence feeds.',
-      'HTTPS indicates the URL scheme, not that a certificate was validated here.'
-    ],
-    timestamp: Date.now()
+    breakdown: { hostname }
   };
 }
 
+/**
+ * Investigates a raw URL using canonical feature extraction, trained model inference,
+ * and the multi-signal detection engine.
+ *
+ * @param {string} rawUrl
+ * @param {Object} [domSignals]
+ * @returns {Object} Complete standardized verdict report
+ */
+function investigateUrl(rawUrl, domSignals = null) {
+  if (!featureAPI || !modelAPI || !detectorAPI) {
+    throw new Error('SentinelAI core detection modules are unavailable.');
+  }
+
+  let cleanUrl = (rawUrl || '').trim();
+  if (!/^[a-zA-Z][a-zA-Z0-9+.-]*:\/\//.test(cleanUrl)) {
+    cleanUrl = `http://${cleanUrl}`;
+  }
+
+  let hostname = '';
+  try {
+    const parsed = new URL(cleanUrl);
+    hostname = (parsed.hostname || '').replace(/^\[|\]$/g, '').toLowerCase();
+  } catch (e) {
+    throw new Error('Enter a valid HTTP or HTTPS URL to investigate.');
+  }
+
+  if (!hostname) {
+    throw new Error('URL must contain a valid hostname.');
+  }
+
+  // 1. Extract canonical 14 features
+  const featureArray = featureAPI.extractFeatures(cleanUrl);
+  const featureObj = featureAPI.extractFeaturesDict(cleanUrl);
+
+  // 2. Compute rule-based lexical flags
+  const lexicalFlags = [];
+  if (featureObj.has_ip === 1) lexicalFlags.push('Raw IP address used instead of domain name');
+  if (featureObj.has_at_symbol === 1) lexicalFlags.push('Contains "@" credential-masking delimiter');
+  if (featureObj.is_https === 0) lexicalFlags.push('Unencrypted connection (insecure HTTP scheme)');
+  if (featureObj.has_suspicious_tld === 1) lexicalFlags.push('High-abuse Top-Level Domain commonly used in phishing');
+  if (featureObj.num_suspicious_keywords > 0) lexicalFlags.push(`Authentication or banking keywords detected (${featureObj.num_suspicious_keywords} matches)`);
+  if (featureObj.num_subdomains >= 2) lexicalFlags.push(`Excessive subdomain depth (${featureObj.num_subdomains} levels)`);
+  if (featureObj.num_hyphens >= 2) lexicalFlags.push(`Excessive hyphens in hostname (${featureObj.num_hyphens}) - typosquatting signal`);
+  if (featureObj.domain_entropy > 3.5) lexicalFlags.push(`High algorithmic domain randomness (Entropy: ${featureObj.domain_entropy})`);
+  if (featureObj.has_double_slash_in_path === 1) lexicalFlags.push('Open redirection path evasion pattern (//)');
+
+  // 3. Execute Scikit-Learn Model Inference
+  const mlProbabilities = modelAPI.predictProba(featureArray);
+  const rawModelPhishingScore = Number(mlProbabilities[1].toFixed(4));
+
+  // 4. Run Multi-Signal Engine (Homographs + Brand Impersonation + DOM + Scam Story)
+  const report = detectorAPI.evaluateUrlSignals({
+    url: cleanUrl,
+    hostname,
+    features: featureArray,
+    mlProbabilities,
+    lexicalFlags,
+    domSignals,
+    isWhitelisted: false,
+    modelVersion: modelAPI.MODEL_VERSION || ACTIVE_MODEL_VERSION
+  });
+
+  // Attach raw features, probabilities, and model attributes
+  report.features = featureObj;
+  report.featureArray = featureArray;
+  report.featureSchema = modelAPI.FEATURE_NAMES;
+  report.modelVersion = modelAPI.MODEL_VERSION || ACTIVE_MODEL_VERSION;
+  report.probabilities = { benign: mlProbabilities[0], phishing: mlProbabilities[1] };
+  report.riskScore = rawModelPhishingScore; // Raw model probability score matching Scikit-Learn
+  report.url = cleanUrl;
+  report.hostname = hostname;
+
+  return report;
+}
+
 async function saveScanHistory(report) {
-  if (typeof chrome === 'undefined') return;
+  if (typeof chrome === 'undefined' || !chrome.storage) return;
   const history = await getStorage('sentinel_scan_history', []);
-  const next = [report, ...history.filter(item => item.url !== report.url)].slice(0, MAX_SCAN_HISTORY);
+  const cleanItem = {
+    url: report.url,
+    hostname: report.hostname,
+    verdict: report.verdict,
+    riskLevel: report.riskLevel,
+    riskScore: report.riskScore,
+    confidence: report.confidence,
+    brandMatch: report.brandMatch,
+    summary: report.summary,
+    timestamp: report.timestamp || Date.now()
+  };
+  const next = [cleanItem, ...history.filter(item => item.url !== report.url)].slice(0, MAX_SCAN_HISTORY);
   await setStorage('sentinel_scan_history', next);
 }
 
@@ -268,16 +203,13 @@ async function syncLocalDashboard(report) {
   if (enabled !== true) return;
 
   try {
-    const response = await fetch('http://127.0.0.1:8000/api/extension-events', {
+    await fetch('http://127.0.0.1:8000/api/extension-events', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ url: report.url })
     });
-    if (!response.ok) {
-      console.warn(`[SentinelAI] Local dashboard sync failed with HTTP ${response.status}.`);
-    }
-  } catch (error) {
-    console.warn('[SentinelAI] Local dashboard is unavailable for opted-in scan sync.', error);
+  } catch (e) {
+    // Local API not running; fail silently
   }
 }
 
@@ -285,184 +217,177 @@ async function syncLocalDashboard(report) {
 // Badge Visualizer
 // ============================================================================
 
-/**
- * Updates extension action badge text and background color according to threat status.
- *
- * @param {number} tabId
- * @param {'SAFE' | 'WARN' | 'RISK' | 'INTERNAL' | 'WHITELISTED'} status
- */
-function updateBadge(tabId, status) {
-  if (status === 'INTERNAL') {
+function updateBadge(tabId, verdict, riskLevel) {
+  if (!tabId || typeof chrome === 'undefined' || !chrome.action) return;
+
+  if (verdict === 'internal' || riskLevel === 'INTERNAL') {
     chrome.action.setBadgeText({ tabId, text: '' });
     return;
   }
-  if (status === 'WHITELISTED') {
+  if (riskLevel === 'WHITELISTED') {
     chrome.action.setBadgeText({ tabId, text: 'SAFE' });
-    chrome.action.setBadgeBackgroundColor({ tabId, color: '#10B981' }); // Green
+    chrome.action.setBadgeBackgroundColor({ tabId, color: '#10B981' });
     return;
   }
-  if (status === 'RISK') {
+  if (verdict === 'malicious' || riskLevel === 'RISK') {
     chrome.action.setBadgeText({ tabId, text: 'RISK' });
-    chrome.action.setBadgeBackgroundColor({ tabId, color: '#EF4444' }); // Red
+    chrome.action.setBadgeBackgroundColor({ tabId, color: '#EF4444' });
     return;
   }
-  if (status === 'WARN') {
+  if (verdict === 'suspicious' || riskLevel === 'WARN') {
     chrome.action.setBadgeText({ tabId, text: 'WARN' });
-    chrome.action.setBadgeBackgroundColor({ tabId, color: '#F59E0B' }); // Amber
+    chrome.action.setBadgeBackgroundColor({ tabId, color: '#F59E0B' });
     return;
   }
-  // Default SAFE
+  if (verdict === 'unknown') {
+    chrome.action.setBadgeText({ tabId, text: 'UNKN' });
+    chrome.action.setBadgeBackgroundColor({ tabId, color: '#64748B' });
+    return;
+  }
+
+  // Default Safe
   chrome.action.setBadgeText({ tabId, text: 'SAFE' });
-  chrome.action.setBadgeBackgroundColor({ tabId, color: '#10B981' }); // Green
+  chrome.action.setBadgeBackgroundColor({ tabId, color: '#10B981' });
 }
 
 // ============================================================================
-// Core Analysis Pipeline
+// Core Tab Analysis Pipeline (Deduplicated & Race-Free)
 // ============================================================================
 
 /**
- * Evaluates the safety of a tab's URL using the on-device AI model.
- *
- * @param {number} tabId
- * @param {string} url
+ * Analyzes a tab's URL with strict deduplication and out-of-order race protection.
  */
-async function analyzeTab(tabId, url) {
+async function analyzeTab(tabId, url, domSignals = null) {
+  if (!tabId) return null;
+
+  // Handle internal browser URLs
   if (!url || isInternalUrl(url)) {
     const internalReport = {
       tabId,
       url: url || 'Browser Page',
       hostname: 'System Page',
-      riskScore: 0.0,
+      verdict: 'safe',
       riskLevel: 'INTERNAL',
-      statusText: 'Internal browser page. Isolated from network threats.',
-      flags: [],
+      riskScore: 0.0,
+      confidence: 1.0,
+      summary: 'Internal browser page. Isolated from network threats.',
+      evidence: [],
       timestamp: Date.now()
     };
     tabCache.set(tabId, internalReport);
-    updateBadge(tabId, 'INTERNAL');
+    updateBadge(tabId, 'internal', 'INTERNAL');
     await setStorage(`tab_${tabId}`, internalReport);
     return internalReport;
   }
 
-  // Extract features
-  const report = investigateUrl(url);
-  const { features, breakdown, evidence: flags } = report;
-  const hostname = breakdown.hostname || '';
-
-  // Check user whitelist
-  const whitelisted = await isWhitelisted(hostname);
-  if (whitelisted) {
-    const whiteReport = {
-      tabId,
-      url,
-      hostname,
-      riskScore: 0.0,
-      riskLevel: 'WHITELISTED',
-      statusText: 'Trusted Domain. Added to personal whitelist.',
-      flags: ['Domain explicitly trusted by user'],
-      whitelisted: true,
-      breakdown,
-      modelVersion: ACTIVE_MODEL_VERSION,
-      timestamp: Date.now()
-    };
-    tabCache.set(tabId, whiteReport);
-    updateBadge(tabId, 'WHITELISTED');
-    await setStorage(`tab_${tabId}`, whiteReport);
-    await setStorage('last_scan_result', whiteReport);
-    await setStorage('last_scanned_url', url);
-    return whiteReport;
+  // Deduplication check: if the exact same URL was just analyzed and no new DOM signals provided, return cached
+  const lastUrl = lastAnalyzedUrlByTab.get(tabId);
+  const cachedReport = tabCache.get(tabId);
+  if (lastUrl === url && cachedReport && !domSignals) {
+    return cachedReport;
   }
 
-  // Run on-device local AI inference
-  const riskScore = report.riskScore;
+  // Set sequence number for this tab
+  const currentSeq = (tabScanSequences.get(tabId) || 0) + 1;
+  tabScanSequences.set(tabId, currentSeq);
+  lastAnalyzedUrlByTab.set(tabId, url);
 
-  let riskLevel = 'SAFE';
-  let statusText = 'Low Risk: URL structure appears legitimate.';
-
-  if (riskScore > 0.75) {
-    riskLevel = 'RISK';
-    statusText = 'Critical Risk: High probability of phishing or scam link!';
-  } else if (riskScore >= 0.40) {
-    riskLevel = 'WARN';
-    statusText = 'Caution: Suspicious URL characteristics detected.';
-  }
-
-  const assessment = {
-    tabId,
-    url,
-    hostname,
-    riskScore,
-    riskLevel,
-    statusText,
-    modelVersion: report.modelVersion,
-    modelType: report.modelType,
-    probabilities: report.probabilities,
-    whitelisted: false,
-    flags,
-    breakdown,
-    timestamp: Date.now()
-  };
-
-  tabCache.set(tabId, assessment);
-  updateBadge(tabId, riskLevel);
-
-  // Persist assessment in chrome.storage.local for popup dashboard
-  await setStorage(`tab_${tabId}`, assessment);
-  await setStorage('last_scan_result', assessment);
-  await setStorage('last_scanned_url', url);
-  await saveScanHistory(assessment);
-  void syncLocalDashboard(assessment);
-
-  // If risk score > 0.75, inject content.js and dispatch warning
-  if (riskScore > 0.75) {
+  try {
+    // 1. Check user whitelist
+    let hostname = '';
     try {
-      await chrome.scripting.executeScript({
-        target: { tabId },
-        files: ['content.js']
-      });
-    } catch (e) {
-      // Script may already be injected or page navigation in progress
+      hostname = new URL(url).hostname;
+    } catch (e) {}
+
+    const whitelisted = await isWhitelisted(hostname);
+    if (whitelisted) {
+      const whiteReport = {
+        tabId,
+        url,
+        hostname,
+        verdict: 'safe',
+        riskLevel: 'WHITELISTED',
+        riskScore: 0.0,
+        confidence: 1.0,
+        whitelisted: true,
+        summary: 'Trusted Domain. Added to personal whitelist.',
+        evidence: [{ category: 'User Preference', title: 'Whitelist', detail: 'Domain is explicitly trusted by user.', severity: 'low' }],
+        modelVersion: ACTIVE_MODEL_VERSION,
+        timestamp: Date.now()
+      };
+      if (tabScanSequences.get(tabId) === currentSeq) {
+        tabCache.set(tabId, whiteReport);
+        updateBadge(tabId, 'safe', 'WHITELISTED');
+        await setStorage(`tab_${tabId}`, whiteReport);
+      }
+      return whiteReport;
     }
 
-    // Send threat alert message to content script
-    chrome.tabs.sendMessage(tabId, {
-      action: 'TRIGGER_WARNING_OVERLAY',
-      report: assessment
-    }).catch(() => {});
-  }
+    // 2. Perform investigation
+    const report = investigateUrl(url, domSignals);
+    report.tabId = tabId;
 
-  return assessment;
+    // Check if user previously overrode this origin in extension storage
+    const userOverrides = await getStorage('sentinel_overrides', []);
+    if (userOverrides.includes(report.hostname)) {
+      report.overridden = true;
+    }
+
+    // Verify sequence before committing state (guards against out-of-order race conditions)
+    if (tabScanSequences.get(tabId) === currentSeq) {
+      tabCache.set(tabId, report);
+      updateBadge(tabId, report.verdict, report.riskLevel);
+      await setStorage(`tab_${tabId}`, report);
+      await saveScanHistory(report);
+      void syncLocalDashboard(report);
+
+      // Inject content script and dispatch warning if malicious
+      if (report.verdict === 'malicious' && !report.overridden) {
+        try {
+          await chrome.scripting.executeScript({
+            target: { tabId },
+            files: ['content.js']
+          });
+        } catch (e) {}
+
+        chrome.tabs.sendMessage(tabId, {
+          action: 'TRIGGER_WARNING_OVERLAY',
+          report
+        }).catch(() => {});
+      }
+    }
+
+    return report;
+  } catch (err) {
+    console.error(`[SentinelAI] Error analyzing tab ${tabId}:`, err);
+    return null;
+  }
 }
 
 // ============================================================================
-// Event Listeners
+// Event Listeners (WebNavigation, Tabs, Runtime Messages)
 // ============================================================================
 
 if (typeof chrome !== 'undefined') {
-  // 1. chrome.webNavigation.onCompleted listener (Main Navigation Target)
+  // 1. webNavigation.onCompleted (Primary commit listener for main frame)
   chrome.webNavigation.onCompleted.addListener((details) => {
     if (details.frameId === 0 && details.url) {
       analyzeTab(details.tabId, details.url);
     }
   });
 
-  // 2. Fallback tab updates (e.g., dynamic client-side SPA routing)
+  // 2. tabs.onUpdated (Fallback for dynamic client-side SPA routing)
   chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
-    if (changeInfo.url || (changeInfo.status === 'complete' && tab.url)) {
-      const targetUrl = changeInfo.url || tab.url;
-      if (targetUrl) {
-        analyzeTab(tabId, targetUrl);
-      }
+    if (changeInfo.url) {
+      analyzeTab(tabId, changeInfo.url);
     }
   });
 
-  // 3. Tab switch: synchronizes badge and active scan report
+  // 3. tabs.onActivated (Synchronize badge upon switching tabs)
   chrome.tabs.onActivated.addListener(async (activeInfo) => {
     const cached = tabCache.get(activeInfo.tabId);
     if (cached) {
-      updateBadge(activeInfo.tabId, cached.riskLevel);
-      await setStorage('last_scan_result', cached);
-      await setStorage('last_scanned_url', cached.url);
+      updateBadge(activeInfo.tabId, cached.verdict, cached.riskLevel);
     } else {
       try {
         const tab = await chrome.tabs.get(activeInfo.tabId);
@@ -473,41 +398,67 @@ if (typeof chrome !== 'undefined') {
     }
   });
 
-  // 4. Tab cleanup
+  // 4. tabs.onRemoved (Cleanup tab-specific caches)
   chrome.tabs.onRemoved.addListener((tabId) => {
     tabCache.delete(tabId);
+    lastAnalyzedUrlByTab.delete(tabId);
+    tabScanSequences.delete(tabId);
     chrome.storage.local.remove([`tab_${tabId}`], () => {});
   });
 
   // ============================================================================
-  // Message Passing Handler (Popup & Content Script Communication)
+  // Message Passing Hub
   // ============================================================================
 
   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     const senderTabId = sender?.tab?.id;
 
+    // Investigate arbitrary URL without navigation
     if (message.action === 'INVESTIGATE_URL') {
       try {
         const report = investigateUrl(message.url || '');
-        saveScanHistory(report).then(() => sendResponse({ success: true, report }));
+        saveScanHistory(report).then(() => {
+          sendResponse({ success: true, report });
+        });
       } catch (error) {
         sendResponse({ success: false, error: error.message });
       }
       return true;
     }
 
-    if (message.action === 'GET_SCAN_HISTORY') {
-      getStorage('sentinel_scan_history', [])
-        .then(history => sendResponse({ success: true, history }))
-        .catch(error => sendResponse({ success: false, error: error.message }));
-      return true;
+    // Report DOM threat signals from content script
+    if (message.action === 'REPORT_DOM_SIGNALS') {
+      const tabId = senderTabId;
+      if (tabId && message.domSignals?.url) {
+        analyzeTab(tabId, message.domSignals.url, message.domSignals).then((assessment) => {
+          sendResponse({ success: true, assessment });
+        });
+        return true;
+      }
+      sendResponse({ success: false, error: 'Missing tab or URL' });
+      return false;
     }
 
-    // Retrieve scan data for popup
+    // Set user override for a domain
+    if (message.action === 'SET_USER_OVERRIDE') {
+      const hostname = message.hostname;
+      if (hostname) {
+        getStorage('sentinel_overrides', []).then(async (overrides) => {
+          if (!overrides.includes(hostname)) {
+            overrides.push(hostname);
+            await setStorage('sentinel_overrides', overrides);
+          }
+          sendResponse({ success: true, overrides });
+        });
+        return true;
+      }
+    }
+
+    // Retrieve active scan assessment for popup
     if (message.action === 'GET_SCAN_DATA') {
       const tabId = message.tabId || senderTabId;
       if (!tabId) {
-        sendResponse({ success: false, error: 'No tab id' });
+        sendResponse({ success: false, error: 'No tab id provided' });
         return false;
       }
 
@@ -528,13 +479,12 @@ if (typeof chrome !== 'undefined') {
                 sendResponse({ success: true, assessment: fresh });
               });
             } else {
-              sendResponse({ success: false, error: 'Tab inaccessible' });
+              sendResponse({ success: false, error: 'Tab is inaccessible' });
             }
           }).catch((err) => sendResponse({ success: false, error: err.message }));
         }
       });
-
-      return true; // Keep channel open for async response
+      return true;
     }
 
     // Force re-scan of a tab
@@ -542,6 +492,7 @@ if (typeof chrome !== 'undefined') {
       const tabId = message.tabId;
       chrome.tabs.get(tabId).then((tab) => {
         if (tab && tab.url) {
+          lastAnalyzedUrlByTab.delete(tabId); // invalidate cache
           analyzeTab(tabId, tab.url).then((assessment) => {
             sendResponse({ success: true, assessment });
           });
@@ -552,7 +503,15 @@ if (typeof chrome !== 'undefined') {
       return true;
     }
 
-    // Whitelist toggle
+    // Scan history query
+    if (message.action === 'GET_SCAN_HISTORY') {
+      getStorage('sentinel_scan_history', [])
+        .then(history => sendResponse({ success: true, history }))
+        .catch(err => sendResponse({ success: false, error: err.message }));
+      return true;
+    }
+
+    // Toggle Whitelist
     if (message.action === 'TOGGLE_WHITELIST') {
       const { hostname, whitelist, tabId } = message;
       getStorage('sentinel_whitelist', []).then(async (list) => {
@@ -565,10 +524,23 @@ if (typeof chrome !== 'undefined') {
         await setStorage('sentinel_whitelist', updated);
         if (tabId) {
           chrome.tabs.get(tabId).then((tab) => {
-            if (tab && tab.url) analyzeTab(tabId, tab.url);
+            if (tab && tab.url) {
+              lastAnalyzedUrlByTab.delete(tabId);
+              analyzeTab(tabId, tab.url);
+            }
           });
         }
         sendResponse({ success: true, whitelist: updated });
+      });
+      return true;
+    }
+
+    // Open Dashboard Page
+    if (message.action === 'OPEN_DASHBOARD') {
+      const view = message.view || 'overview';
+      const dashboardUrl = chrome.runtime.getURL(`dashboard/index.html#${view}`);
+      chrome.tabs.create({ url: dashboardUrl }, () => {
+        sendResponse({ success: true });
       });
       return true;
     }
@@ -577,18 +549,18 @@ if (typeof chrome !== 'undefined') {
   });
 }
 
+// Module exports for Node.js unit testing
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
-    analyzeTab,
-    extractUrlFeatures,
     investigateUrl,
-    syncLocalDashboard,
-    ACTIVE_MODEL_VERSION,
+    extractUrlFeatures,
+    analyzeTab,
     isInternalUrl,
+    updateBadge,
+    isWhitelisted,
     getStorage,
     setStorage,
-    isWhitelisted,
-    updateBadge,
-    calculateEntropy
+    syncLocalDashboard,
+    ACTIVE_MODEL_VERSION
   };
 }

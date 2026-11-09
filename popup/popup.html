@@ -19,13 +19,13 @@
         </div>
         <div class="brand-text">
           <span class="brand-title">SentinelAI</span>
-          <span class="brand-sub">Link Shield • On-Device AI</span>
+          <span class="brand-sub">Cyber Defense • On-Device AI</span>
         </div>
       </div>
 
       <div class="live-pill" id="live-indicator" title="SentinelAI is actively guarding your navigation">
         <span class="pulse-dot"></span>
-        <span>Shield Active</span>
+        <span>Active Shield</span>
       </div>
     </header>
 
@@ -44,7 +44,10 @@
           <span id="target-url-full" class="full-url-preview">--</span>
         </div>
       </div>
-      <div id="protocol-pill" class="pill pill-safe">HTTPS</div>
+      <div class="pill-group">
+        <div id="brand-pill" class="pill pill-danger hidden">Impersonating</div>
+        <div id="protocol-pill" class="pill pill-safe">HTTPS</div>
+      </div>
     </section>
 
     <!-- Main Threat Score & Status Dashboard -->
@@ -65,19 +68,35 @@
         <div class="verdict-wrap">
           <div id="status-badge" class="status-badge badge-safe">
             <span class="badge-dot">●</span>
-            <span id="status-text">Safe Site</span>
+            <span id="status-text">Scanning...</span>
           </div>
           <p id="verdict-summary" class="verdict-description">
-            Extracting heuristic signals and running local model...
+            Evaluating multi-signal heuristics and local model inference...
           </p>
+          <div class="confidence-row">
+            <span id="confidence-label" class="confidence-tag">--% Confidence</span>
+          </div>
         </div>
       </section>
 
+      <!-- Model Detail Strip -->
       <section class="model-detail-card" aria-label="Trained model details">
-        <div class="model-detail-heading"><span class="model-status-dot"></span><span id="model-name">Trained Random Forest</span><strong id="model-version">Model loading</strong></div>
+        <div class="model-detail-heading">
+          <span class="model-status-dot"></span>
+          <span id="model-name">Random Forest Ensemble</span>
+          <strong id="model-version">Model loading</strong>
+        </div>
         <div class="probability-bars">
-          <div class="probability-line"><span>Benign</span><div class="probability-track"><span id="benign-probability-bar"></span></div><strong id="benign-probability">--</strong></div>
-          <div class="probability-line phishing-line"><span>Phishing</span><div class="probability-track"><span id="phishing-probability-bar"></span></div><strong id="phishing-probability">--</strong></div>
+          <div class="probability-line">
+            <span>Benign</span>
+            <div class="probability-track"><span id="benign-probability-bar"></span></div>
+            <strong id="benign-probability">--</strong>
+          </div>
+          <div class="probability-line phishing-line">
+            <span>Phishing</span>
+            <div class="probability-track"><span id="phishing-probability-bar"></span></div>
+            <strong id="phishing-probability">--</strong>
+          </div>
         </div>
       </section>
 
@@ -90,7 +109,7 @@
               <line x1="12" y1="9" x2="12" y2="13"/>
               <line x1="12" y1="17" x2="12.01" y2="17"/>
             </svg>
-            <span>Threat Breakdown</span>
+            <span>Observed Evidence</span>
           </div>
           <span id="flags-badge" class="count-pill pill-zero">0 Detected</span>
         </div>
@@ -102,8 +121,8 @@
               <polyline points="22 4 12 14.01 9 11.01"/>
             </svg>
             <div class="clean-text">
-              <span class="clean-title">All URL checks passed</span>
-              <span class="clean-desc">No deceptive keywords, raw IP address, or phishing tactics detected.</span>
+              <span class="clean-title">All checks normal</span>
+              <span class="clean-desc">No deceptive brand impersonation, raw IP, or phishing tactics detected.</span>
             </div>
           </div>
         </div>
@@ -116,7 +135,7 @@
             <polyline points="23 4 23 10 17 10"/>
             <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
           </svg>
-          <span>Re-scan Page</span>
+          <span>Re-scan Tab</span>
         </button>
 
         <button id="btn-whitelist" class="btn btn-outline" title="Add domain to personal trusted list">
@@ -129,22 +148,20 @@
       </div>
     </main>
 
-    <!-- Privacy Footer -->
+    <!-- Footer with Direct Command Center Link -->
     <footer class="app-footer">
       <div class="popup-tools">
-        <label class="dashboard-sync-control" for="dashboard-sync">
-          <input id="dashboard-sync" type="checkbox">
-          <span class="toggle-track"><i></i></span>
-          <span class="sync-copy"><strong>Live console sync</strong><small>Opt in to send scanned URLs to 127.0.0.1</small></span>
-        </label>
-        <button id="btn-open-console" class="console-button" type="button">Open security console <span>↗</span></button>
+        <button id="btn-open-console" class="console-button" type="button">
+          <span>Open Security Command Center</span>
+          <span class="arrow-icon">↗</span>
+        </button>
       </div>
       <div class="privacy-tag">
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
           <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
         </svg>
-        <span>On-device model inference • Console sync is opt-in</span>
+        <span>100% On-Device AI • Zero Browsing History Shared</span>
       </div>
     </footer>
   </div>

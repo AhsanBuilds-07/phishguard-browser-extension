@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "SentinelAI: Phishing & Scam Link Shield",
-  "version": "1.0.0",
-  "description": "Real-time AI-powered on-device phishing, scam, and fraudulent link detection shield.",
+  "version": "1.1.0",
+  "description": "On-device AI cyber defense shield detecting phishing, brand impersonation, deceptive URLs, and credential scams.",
   "permissions": [
     "activeTab",
     "tabs",
@@ -29,13 +29,31 @@
   ],
   "action": {
     "default_popup": "popup/popup.html",
-    "default_title": "SentinelAI Link Shield",
+    "default_title": "SentinelAI Security Shield",
     "default_icon": {
       "16": "icons/icon16.png",
       "48": "icons/icon48.png",
       "128": "icons/icon128.png"
     }
   },
+  "options_ui": {
+    "page": "dashboard/index.html",
+    "open_in_tab": true
+  },
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "dashboard/*",
+        "icons/*",
+        "ml/features.js",
+        "ml/detector.js",
+        "ml/models/model_exported.js"
+      ],
+      "matches": [
+        "<all_urls>"
+      ]
+    }
+  ],
   "icons": {
     "16": "icons/icon16.png",
     "48": "icons/icon48.png",

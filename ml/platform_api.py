@@ -515,10 +515,87 @@ def dashboard() -> FileResponse:
     return FileResponse(ROOT_DIR / "dashboard" / "index.html")
 
 
+@app.get("/favicon.ico")
+def favicon() -> FileResponse:
+    icon_path = ROOT_DIR / "icons" / "icon48.png"
+    if icon_path.is_file():
+        return FileResponse(icon_path, media_type="image/png")
+    raise HTTPException(status_code=404, detail="Favicon not found.")
+
+
+@app.get("/dashboard.css")
+def root_dashboard_css() -> FileResponse:
+    path = ROOT_DIR / "dashboard" / "dashboard.css"
+    if not path.is_file():
+        raise HTTPException(status_code=404, detail="dashboard.css not found.")
+    return FileResponse(path, media_type="text/css")
+
+
+@app.get("/dashboard.js")
+def root_dashboard_js() -> FileResponse:
+    path = ROOT_DIR / "dashboard" / "dashboard.js"
+    if not path.is_file():
+        raise HTTPException(status_code=404, detail="dashboard.js not found.")
+    return FileResponse(path, media_type="text/javascript")
+
+
 @app.get("/dashboard/{asset_path:path}")
 def dashboard_asset(asset_path: str) -> FileResponse:
     dashboard_root = (ROOT_DIR / "dashboard").resolve()
+    if not asset_path or asset_path == "index.html":
+        return FileResponse(dashboard_root / "index.html")
     path = (dashboard_root / asset_path).resolve()
     if dashboard_root not in path.parents or not path.is_file():
         raise HTTPException(status_code=404, detail="Dashboard asset was not found.")
-    return FileResponse(path)
+    media_type = "text/css" if path.suffix == ".css" else "text/javascript" if path.suffix == ".js" else None
+    return FileResponse(path, media_type=media_type)
+
+
+@app.get("/ml/{asset_path:path}")
+def ml_asset(asset_path: str) -> FileResponse:
+    ml_root = (ROOT_DIR / "ml").resolve()
+    path = (ml_root / asset_path).resolve()
+    # Security: ensure path stays within ml directory and only serves web assets (js, json, css)
+    if ml_root not in path.parents or not path.is_file():
+        raise HTTPException(status_code=404, detail="ML asset was not found.")
+    if path.suffix not in {".js", ".json", ".css"}:
+        raise HTTPException(status_code=403, detail="File type not permitted.")
+    media_type = "text/javascript" if path.suffix == ".js" else "application/json" if path.suffix == ".json" else None
+    return FileResponse(path, media_type=media_type)
+
+
+@app.get("/icons/{asset_path:path}")
+def icon_asset(asset_path: str) -> FileResponse:
+    icons_root = (ROOT_DIR / "icons").resolve()
+    path = (icons_root / asset_path).resolve()
+    if icons_root not in path.parents or not path.is_file():
+        raise HTTPException(status_code=404, detail="Icon was not found.")
+    return FileResponse(path, media_type="image/png")
+
+
+@app.get("/demo")
+@app.get("/demo.html")
+def demo_page() -> FileResponse:
+    demo_path = ROOT_DIR / "demo.html"
+    if not demo_path.is_file():
+        raise HTTPException(status_code=404, detail="Demo page was not found.")
+    return FileResponse(demo_path)
+
+
+@app.get("/landing")
+@app.get("/landing.html")
+def landing_page() -> FileResponse:
+    landing_path = ROOT_DIR / "landing.html"
+    if not landing_path.is_file():
+        raise HTTPException(status_code=404, detail="Landing page was not found.")
+    return FileResponse(landing_path)
+
+
+@app.get("/popup/{asset_path:path}")
+def popup_asset(asset_path: str) -> FileResponse:
+    popup_root = (ROOT_DIR / "popup").resolve()
+    path = (popup_root / asset_path).resolve()
+    if popup_root not in path.parents or not path.is_file():
+        raise HTTPException(status_code=404, detail="Popup asset was not found.")
+    media_type = "text/css" if path.suffix == ".css" else "text/javascript" if path.suffix == ".js" else None
+    return FileResponse(path, media_type=media_type)

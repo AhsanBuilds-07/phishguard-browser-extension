@@ -2,12 +2,15 @@
  * SentinelAI: Phishing & Scam Link Shield
  * Content Script (Manifest V3)
  *
- * Responsibilities:
- * 1. Safely locks DOM credential inputs (password fields) upon threat detection.
- * 2. Injects a modern, dark-mode full-screen warning overlay into an isolated Shadow DOM.
- * 3. Provides a prominent "Go Back to Safety" button to navigate away from scam links.
- * 4. Offers secondary "Proceed Anyway (Unsafe)" and "Trust Domain" controls.
- * 5. Displays a sticky top warning bar if the user chooses to bypass the full-screen modal.
+ * Capabilities:
+ * 1. Safely extracts DOM threat signals (form actions, password destinations, title claims)
+ *    and reports them to the background service worker.
+ * 2. Injects isolated Shadow DOM warning overlay with Scam Story & Evidence Breakdown.
+ * 3. Provides clean, non-disruptive user controls:
+ *    - "Go Back to Safety" (history.back / safe exit)
+ *    - "I Understand the Risk — Proceed Anyway" (reversible override, persistent badge)
+ *    - "Trust Domain" (whitelisting)
+ * 4. Shows non-intrusive amber banner for suspicious links without locking forms.
  */
 
 (() => {
@@ -15,84 +18,264 @@
   window.__sentinelAiInjected = true;
 
   const currentHost = window.location.hostname.toLowerCase();
-  const sessionDismissKey = `sentinel_dismissed_${currentHost}`;
+  const currentOrigin = window.location.origin;
+  const sessionDismissKey = `sentinel_override_${currentHost}`;
 
-  /**
-   * Disables or re-enables form inputs to safeguard against credential harvesting.
-   */
-  function toggleInputsLock(locked) {
-    const inputs = document.querySelectorAll('input[type="password"], input[type="email"], input[type="text"], input[type="tel"]');
+  // ==========================================================================
+  // 1. DOM Signal Extraction
+  // ==========================================================================
+
+  function extractDomThreatSignals() {
+    try {
+      const forms = Array.from(document.forms || []);
+      const passwordInputs = Array.from(document.querySelectorAll('input[type="password"]'));
+      const textInputs = Array.from(document.querySelectorAll('input[type="text"], input[type="email"], input[type="tel"]'));
+
+      let insecureForms = 0;
+      const crossOriginFormDestinations = [];
+      const ipFormDestinations = [];
+
+      forms.forEach(form => {
+        let actionUrl = '';
+        try {
+          actionUrl = form.action ? new URL(form.action, window.location.href).href : window.location.href;
+        } catch (e) {
+          actionUrl = form.action || '';
+        }
+
+        if (actionUrl) {
+          try {
+            const parsedAction = new URL(actionUrl);
+            const actionHost = parsedAction.hostname.toLowerCase();
+
+            // Check if HTTP submission on HTTPS page
+            if (window.location.protocol === 'https:' && parsedAction.protocol === 'http:') {
+              insecureForms++;
+            }
+
+            // Check if raw IP destination
+            if (/^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}/.test(actionHost)) {
+              ipFormDestinations.push(actionHost);
+            }
+
+            // Check if cross-origin destination
+            if (parsedAction.origin !== currentOrigin && !actionHost.endsWith('.' + currentHost)) {
+              crossOriginFormDestinations.push(actionHost);
+            }
+          } catch (e) {}
+        }
+      });
+
+      // Detect credit card indicators
+      const hasCreditCardField = Boolean(
+        document.querySelector('input[autocomplete*="cc-"], input[name*="card"], input[name*="cvv"], input[id*="cvv"]')
+      );
+
+      return {
+        formCount: forms.length,
+        passwordInputCount: passwordInputs.length,
+        textInputCount: textInputs.length,
+        insecureForms,
+        crossOriginFormDestinations: Array.from(new Set(crossOriginFormDestinations)),
+        ipFormDestinations: Array.from(new Set(ipFormDestinations)),
+        hasCreditCardField,
+        title: document.title || '',
+        url: window.location.href
+      };
+    } catch (e) {
+      return {
+        formCount: 0,
+        passwordInputCount: 0,
+        textInputCount: 0,
+        insecureForms: 0,
+        crossOriginFormDestinations: [],
+        ipFormDestinations: [],
+        hasCreditCardField: false,
+        title: document.title || '',
+        url: window.location.href
+      };
+    }
+  }
+
+  // Send DOM signals to background service worker
+  function reportDomSignals() {
+    const domSignals = extractDomThreatSignals();
+    try {
+      chrome.runtime.sendMessage({
+        action: 'REPORT_DOM_SIGNALS',
+        domSignals
+      }, (res) => {
+        if (chrome.runtime.lastError) return;
+        if (res?.success && res.assessment) {
+          handleAssessment(res.assessment);
+        }
+      });
+    } catch (e) {}
+  }
+
+  // ==========================================================================
+  // 2. Safe Password Inputs Safeguard
+  // ==========================================================================
+
+  function togglePasswordInputs(locked) {
+    const inputs = document.querySelectorAll('input[type="password"]');
     inputs.forEach(input => {
       if (locked) {
         if (!input.hasAttribute('data-sentinel-locked')) {
           input.setAttribute('data-sentinel-locked', 'true');
           input.setAttribute('data-orig-disabled', input.disabled ? 'true' : 'false');
-          input.setAttribute('data-orig-readonly', input.readOnly ? 'true' : 'false');
         }
         input.disabled = true;
-        input.readOnly = true;
-        input.blur();
       } else {
         if (input.hasAttribute('data-sentinel-locked')) {
           input.disabled = input.getAttribute('data-orig-disabled') === 'true';
-          input.readOnly = input.getAttribute('data-orig-readonly') === 'true';
           input.removeAttribute('data-sentinel-locked');
           input.removeAttribute('data-orig-disabled');
-          input.removeAttribute('data-orig-readonly');
         }
       }
     });
   }
 
+  // ==========================================================================
+  // 3. UI Warning Overlays
+  // ==========================================================================
+
+  function escapeHtml(str) {
+    if (!str) return '';
+    return String(str).replace(/[&<>"']/g, (m) => ({
+      '&': '&amp;',
+      '<': '&lt;',
+      '>': '&gt;',
+      '"': '&quot;',
+      "'": '&#039;'
+    }[m]));
+  }
+
   /**
-   * Renders the isolated Shadow DOM Full-Screen Warning Overlay.
+   * Shows a discrete sticky floating badge after the user overrides a warning.
+   */
+  function showStickyBadge(report) {
+    if (document.getElementById('sentinel-sticky-badge-host')) return;
+
+    const hostDiv = document.createElement('div');
+    hostDiv.id = 'sentinel-sticky-badge-host';
+    const shadow = hostDiv.attachShadow({ mode: 'open' });
+
+    const riskScore = Math.round((report.riskScore ?? 0.8) * 100);
+
+    shadow.innerHTML = `
+      <style>
+        :host {
+          all: initial;
+          position: fixed !important;
+          bottom: 20px !important;
+          right: 20px !important;
+          z-index: 2147483647 !important;
+          font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+        }
+        .sentinel-pill {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          background: rgba(15, 23, 42, 0.95);
+          color: #f8fafc;
+          border: 1px solid #ef4444;
+          padding: 8px 14px;
+          border-radius: 9999px;
+          font-size: 12px;
+          font-weight: 600;
+          box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
+          cursor: pointer;
+          transition: transform 0.2s, background 0.2s;
+        }
+        .sentinel-pill:hover {
+          transform: translateY(-2px);
+          background: #1e293b;
+        }
+        .sentinel-dot {
+          width: 8px;
+          height: 8px;
+          background: #ef4444;
+          border-radius: 50%;
+          animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+          0% { opacity: 1; transform: scale(1); }
+          50% { opacity: 0.4; transform: scale(1.2); }
+          100% { opacity: 1; transform: scale(1); }
+        }
+      </style>
+      <div class="sentinel-pill" id="badge-click" title="Click to review SentinelAI security warning">
+        <span class="sentinel-dot"></span>
+        <span>SentinelAI: Overridden (${riskScore}% Risk)</span>
+      </div>
+    `;
+
+    document.documentElement.appendChild(hostDiv);
+    shadow.getElementById('badge-click').addEventListener('click', () => {
+      hostDiv.remove();
+      sessionStorage.removeItem(sessionDismissKey);
+      showWarningOverlay(report);
+    });
+  }
+
+  /**
+   * Renders the Full-Screen Security Warning Overlay in an isolated Shadow DOM.
    */
   function showWarningOverlay(report) {
     if (document.getElementById('sentinel-warning-overlay-host')) return;
 
-    // Check if dismissed for current origin in this browser tab session
+    // If user previously overrode this origin in this session, show the sticky badge instead
     if (sessionStorage.getItem(sessionDismissKey)) {
-      showTopWarningBanner(report);
+      showStickyBadge(report);
       return;
     }
 
-    // Safeguard user credentials
-    toggleInputsLock(true);
+    // Lock password inputs while warning modal is active
+    togglePasswordInputs(true);
 
     const hostDiv = document.createElement('div');
     hostDiv.id = 'sentinel-warning-overlay-host';
     const shadow = hostDiv.attachShadow({ mode: 'open' });
 
     const riskPercent = Math.round((report.riskScore ?? 0.95) * 100);
-    const modelVersion = report.modelVersion || 'trained local model';
     const domainText = report.hostname || window.location.hostname;
-    const flags = report.flags || [];
+    const modelVersion = report.modelVersion || 'SentinelAI RF Ensemble';
 
-    const flagsHtml = flags.length > 0
-      ? flags.map(flag => `
-          <div class="threat-flag-row">
-            <svg class="flag-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
-              <line x1="12" y1="9" x2="12" y2="13"/>
-              <line x1="12" y1="17" x2="12.01" y2="17"/>
-            </svg>
-            <span>${escapeHtml(flag)}</span>
-          </div>
-        `).join('')
-      : `
-          <div class="threat-flag-row">
-            <svg class="flag-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
-            </svg>
-            <span>High-confidence deceptive scam heuristics matched</span>
-          </div>
-        `;
+    const brandMatch = report.brandMatch;
+    const attackChain = report.attackChain || {};
+    const evidenceList = report.evidence || [];
+    const coachTip = report.scamCoachTip || 'Never enter passwords on unverified sites.';
+
+    const brandBadgeHtml = brandMatch
+      ? `<div class="brand-alert-banner">
+           <span class="brand-icon">⚠</span>
+           <div>
+             <strong>Deceptive Brand Impersonation Detected</strong>
+             <p>This site appears to impersonate <strong>${escapeHtml(brandMatch)}</strong>, but is hosted on an unauthorized domain (<code>${escapeHtml(domainText)}</code>).</p>
+           </div>
+         </div>`
+      : '';
+
+    const factsHtml = (attackChain.observedFacts && attackChain.observedFacts.length > 0)
+      ? attackChain.observedFacts.map(fact => `<li>${escapeHtml(fact)}</li>`).join('')
+      : `<li>Suspicious URL pattern and deceptive hostname characteristics.</li>`;
+
+    const evidenceHtml = evidenceList.slice(0, 4).map(item => `
+      <div class="evidence-card">
+        <div class="evidence-header">
+          <span class="evidence-tag ${item.severity === 'high' ? 'tag-high' : 'tag-med'}">${escapeHtml(item.category)}</span>
+          <span class="evidence-title">${escapeHtml(item.title)}</span>
+        </div>
+        <p class="evidence-detail">${escapeHtml(item.detail)}</p>
+      </div>
+    `).join('');
 
     shadow.innerHTML = `
       <style>
         :host {
           all: initial;
-          font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
+          font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
           position: fixed !important;
           top: 0 !important;
           left: 0 !important;
@@ -102,318 +285,254 @@
           display: flex !important;
           align-items: center !important;
           justify-content: center !important;
-          background: rgba(11, 15, 25, 0.96) !important;
-          backdrop-filter: blur(16px) !important;
-          -webkit-backdrop-filter: blur(16px) !important;
-          animation: sentinelFadeIn 0.25s ease-out;
+          background: rgba(5, 8, 16, 0.94) !important;
+          backdrop-filter: blur(12px) !important;
           color: #f1f5f9 !important;
+          padding: 20px !important;
           box-sizing: border-box !important;
+          overflow-y: auto !important;
         }
 
-        @keyframes sentinelFadeIn {
-          from { opacity: 0; transform: scale(0.97); }
-          to { opacity: 1; transform: scale(1); }
-        }
-
-        .sentinel-modal {
-          background: #111827;
+        .modal-card {
+          background: #0f172a;
           border: 1px solid rgba(239, 68, 68, 0.4);
-          width: 92%;
-          max-width: 580px;
-          border-radius: 18px;
-          box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.8), 0 0 30px rgba(239, 68, 68, 0.15);
-          overflow: hidden;
-          display: flex;
-          flex-direction: column;
+          border-radius: 16px;
+          max-width: 640px;
+          width: 100%;
+          padding: 32px;
+          box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7), 0 0 40px rgba(239, 68, 68, 0.15);
+          box-sizing: border-box;
+          animation: modalIn 0.25s cubic-bezier(0.16, 1, 0.3, 1);
         }
 
-        /* Modal Header */
-        .modal-top {
-          background: linear-gradient(135deg, rgba(239, 68, 68, 0.2) 0%, rgba(185, 28, 28, 0.05) 100%);
-          border-bottom: 1px solid rgba(239, 68, 68, 0.2);
-          padding: 24px 28px;
-          display: flex;
-          align-items: center;
-          gap: 16px;
+        @keyframes modalIn {
+          from { opacity: 0; transform: scale(0.96) translateY(10px); }
+          to { opacity: 1; transform: scale(1) translateY(0); }
         }
 
-        .shield-badge {
-          width: 50px;
-          height: 50px;
-          background: #ef4444;
-          border-radius: 12px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          flex-shrink: 0;
-          color: #ffffff;
-          box-shadow: 0 4px 15px rgba(239, 68, 68, 0.4);
-          animation: shieldPulse 2s infinite;
-        }
-
-        @keyframes shieldPulse {
-          0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.5); }
-          70% { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); }
-          100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
-        }
-
-        .title-group h1 {
-          margin: 0;
-          font-size: 19px;
-          font-weight: 800;
-          color: #ffffff;
-          letter-spacing: -0.01em;
-        }
-
-        .title-group p {
-          margin: 4px 0 0 0;
-          font-size: 13px;
-          color: #94a3b8;
-        }
-
-        /* Modal Body */
-        .modal-body {
-          padding: 22px 28px;
-          display: flex;
-          flex-direction: column;
-          gap: 16px;
-        }
-
-        .threat-summary-bar {
-          background: rgba(30, 41, 59, 0.7);
-          border: 1px solid #334155;
-          border-radius: 12px;
-          padding: 12px 16px;
+        .header-row {
           display: flex;
           align-items: center;
           justify-content: space-between;
+          margin-bottom: 20px;
         }
 
-        .target-host-info {
-          display: flex;
-          flex-direction: column;
-        }
-
-        .target-host-label {
-          font-size: 10px;
-          text-transform: uppercase;
-          color: #94a3b8;
+        .badge-threat {
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          background: rgba(239, 68, 68, 0.15);
+          border: 1px solid #ef4444;
+          color: #fca5a5;
+          padding: 4px 10px;
+          border-radius: 9999px;
+          font-size: 12px;
           font-weight: 700;
-          letter-spacing: 0.05em;
+          letter-spacing: 0.5px;
         }
 
-        .target-host-val {
+        .risk-gauge-tag {
+          font-size: 13px;
+          font-weight: 700;
+          color: #ef4444;
+        }
+
+        h1 {
+          font-size: 24px;
+          font-weight: 800;
+          color: #ffffff;
+          margin: 0 0 8px 0;
+          letter-spacing: -0.5px;
+        }
+
+        .subtitle {
           font-size: 14px;
-          font-weight: 700;
-          color: #38bdf8;
-          font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+          color: #94a3b8;
+          line-height: 1.5;
+          margin: 0 0 20px 0;
+        }
+
+        .domain-pill {
+          background: #1e293b;
+          color: #f8fafc;
+          padding: 2px 8px;
+          border-radius: 6px;
+          font-family: monospace;
           word-break: break-all;
         }
 
-        .risk-badge {
-          background: #ef4444;
-          color: #ffffff;
-          font-size: 12px;
-          font-weight: 800;
-          padding: 6px 12px;
-          border-radius: 9999px;
-          letter-spacing: 0.02em;
-          flex-shrink: 0;
-        }
-
-        .model-attribution {
+        .brand-alert-banner {
           display: flex;
-          justify-content: space-between;
           gap: 12px;
-          padding: 9px 12px;
-          border: 1px solid rgba(56, 189, 248, 0.22);
-          border-radius: 9px;
-          background: rgba(14, 116, 144, 0.09);
-          color: #a5c9d4;
-          font-size: 10px;
-        }
-
-        .model-attribution strong {
-          color: #7dd3fc;
-          font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-          font-weight: 600;
-        }
-
-        .flags-header {
-          font-size: 11px;
-          font-weight: 700;
-          text-transform: uppercase;
-          color: #94a3b8;
-          letter-spacing: 0.04em;
-        }
-
-        .flags-container {
-          display: flex;
-          flex-direction: column;
-          gap: 8px;
-          max-height: 160px;
-          overflow-y: auto;
-        }
-
-        .threat-flag-row {
-          background: rgba(15, 23, 42, 0.6);
-          border: 1px solid rgba(239, 68, 68, 0.2);
+          background: rgba(239, 68, 68, 0.12);
+          border-left: 4px solid #ef4444;
+          padding: 12px 14px;
           border-radius: 8px;
-          padding: 9px 12px;
-          display: flex;
-          align-items: flex-start;
-          gap: 10px;
-          font-size: 12.5px;
+          margin-bottom: 20px;
+          font-size: 13px;
+        }
+        .brand-alert-banner strong {
+          color: #fca5a5;
+          display: block;
+          margin-bottom: 2px;
+        }
+        .brand-alert-banner p {
+          margin: 0;
           color: #cbd5e1;
           line-height: 1.4;
         }
 
-        .flag-icon {
-          flex-shrink: 0;
-          margin-top: 1px;
+        .section-title {
+          font-size: 12px;
+          font-weight: 700;
+          text-transform: uppercase;
+          letter-spacing: 0.8px;
+          color: #64748b;
+          margin: 16px 0 8px 0;
         }
 
-        .credentials-guard-box {
-          background: rgba(239, 68, 68, 0.1);
-          border: 1px solid rgba(239, 68, 68, 0.25);
-          border-radius: 10px;
+        .facts-list {
+          margin: 0 0 16px 0;
+          padding-left: 20px;
+          font-size: 13px;
+          color: #cbd5e1;
+          line-height: 1.6;
+        }
+
+        .evidence-grid {
+          display: grid;
+          gap: 8px;
+          margin-bottom: 20px;
+        }
+        .evidence-card {
+          background: #1e293b;
+          border: 1px solid rgba(255, 255, 255, 0.06);
+          border-radius: 8px;
           padding: 10px 14px;
+          font-size: 12px;
+        }
+        .evidence-header {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          margin-bottom: 4px;
+        }
+        .evidence-tag {
+          font-size: 10px;
+          font-weight: 700;
+          padding: 2px 6px;
+          border-radius: 4px;
+          text-transform: uppercase;
+        }
+        .tag-high { background: #ef4444; color: #fff; }
+        .tag-med { background: #f59e0b; color: #fff; }
+        .evidence-title { font-weight: 600; color: #f8fafc; }
+        .evidence-detail { margin: 0; color: #94a3b8; line-height: 1.4; }
+
+        .coach-box {
           display: flex;
           align-items: center;
           gap: 10px;
+          background: rgba(56, 189, 248, 0.08);
+          border: 1px solid rgba(56, 189, 248, 0.25);
+          color: #7dd3fc;
+          padding: 10px 14px;
+          border-radius: 8px;
           font-size: 12px;
-          color: #fca5a5;
-          font-weight: 600;
+          margin-bottom: 24px;
         }
 
-        /* Modal Footer / Actions */
-        .modal-footer {
-          padding: 16px 28px 22px;
-          background: #0f172a;
-          border-top: 1px solid #1e293b;
+        .actions-row {
           display: flex;
-          align-items: center;
-          justify-content: space-between;
           gap: 12px;
+          flex-wrap: wrap;
         }
-
-        .btn {
-          border: none;
-          cursor: pointer;
-          font-size: 13px;
-          font-weight: 700;
-          padding: 11px 18px;
-          border-radius: 10px;
-          transition: all 0.15s ease;
-          display: inline-flex;
-          align-items: center;
-          justify-content: center;
-          gap: 6px;
-          font-family: inherit;
-        }
-
-        /* Prominent Go Back to Safety Button */
         .btn-safety {
+          flex: 1;
           background: #ef4444;
           color: #ffffff;
-          box-shadow: 0 4px 12px rgba(239, 68, 68, 0.35);
+          border: none;
+          padding: 12px 20px;
+          border-radius: 8px;
+          font-size: 14px;
+          font-weight: 700;
+          cursor: pointer;
+          transition: background 0.2s;
+          text-align: center;
         }
+        .btn-safety:hover { background: #dc2626; }
 
-        .btn-safety:hover {
-          background: #dc2626;
-          transform: translateY(-1px);
-          box-shadow: 0 6px 16px rgba(239, 68, 68, 0.45);
-        }
-
-        .btn-safety:active {
-          transform: translateY(0);
-        }
-
-        .btn-bypass {
+        .btn-override {
           background: transparent;
-          color: #64748b;
-          padding: 10px 12px;
-        }
-
-        .btn-bypass:hover {
-          color: #cbd5e1;
-          background: rgba(255, 255, 255, 0.05);
-        }
-
-        .btn-whitelist {
-          background: transparent;
-          color: #38bdf8;
+          color: #94a3b8;
           border: 1px solid #334155;
+          padding: 12px 18px;
+          border-radius: 8px;
+          font-size: 13px;
+          font-weight: 600;
+          cursor: pointer;
+          transition: color 0.2s, border-color 0.2s;
         }
+        .btn-override:hover { color: #f8fafc; border-color: #64748b; }
 
-        .btn-whitelist:hover {
-          background: rgba(56, 189, 248, 0.1);
-          border-color: #38bdf8;
+        .footer-note {
+          display: flex;
+          justify-content: space-between;
+          font-size: 11px;
+          color: #64748b;
+          margin-top: 16px;
+          border-top: 1px solid rgba(255, 255, 255, 0.05);
+          padding-top: 12px;
         }
       </style>
 
-      <div class="sentinel-modal">
-        <div class="modal-top">
-          <div class="shield-badge">
-            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
-              <line x1="12" y1="8" x2="12" y2="12"/>
-              <line x1="12" y1="16" x2="12.01" y2="16"/>
-            </svg>
+      <div class="modal-card">
+        <div class="header-row">
+          <div class="badge-threat">
+            <span>●</span>
+            <span>HIGH-RISK PHISHING INTERCEPTED</span>
           </div>
-          <div class="title-group">
-            <h1>High-risk URL detected</h1>
-            <p>The trained SentinelAI model estimated a ${riskPercent}% phishing probability</p>
-          </div>
+          <span class="risk-gauge-tag">${riskPercent}% Threat Probability</span>
         </div>
 
-        <div class="modal-body">
-          <div class="threat-summary-bar">
-            <div class="target-host-info">
-              <span class="target-host-label">Suspicious Host:</span>
-              <span class="target-host-val">${escapeHtml(domainText)}</span>
-            </div>
-            <div class="risk-badge">${riskPercent}% Threat Risk</div>
-          </div>
+        <h1>Deceptive Website Blocked</h1>
+        <p class="subtitle">
+          SentinelAI prevented credential input on <span class="domain-pill">${escapeHtml(domainText)}</span>. This site matches signatures of deceptive credential theft.
+        </p>
 
-          <div class="model-attribution">
-            <span>Random Forest · <strong>${escapeHtml(modelVersion)}</strong></span>
-            <span>Local inference</span>
-          </div>
+        ${brandBadgeHtml}
 
-          <div class="flags-header">Detected Risk Signals</div>
-          <div class="flags-container">
-            ${flagsHtml}
-          </div>
+        <div class="section-title">Observed Attack Facts</div>
+        <ul class="facts-list">
+          ${factsHtml}
+        </ul>
 
-          <div class="credentials-guard-box">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-              <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
-              <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
-            </svg>
-            <span>Credential Guard Active: Input fields locked. Do NOT submit passwords or payments.</span>
-          </div>
+        <div class="section-title">Verified Evidence</div>
+        <div class="evidence-grid">
+          ${evidenceHtml}
         </div>
 
-        <div class="modal-footer">
-          <button class="btn btn-bypass" id="btn-proceed">Proceed Anyway (Unsafe)</button>
-          <div style="display: flex; gap: 8px;">
-            <button class="btn btn-whitelist" id="btn-trust">Trust Domain</button>
-            <button class="btn btn-safety" id="btn-safety">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M19 12H5M12 19l-7-7 7-7"/>
-              </svg>
-              Go Back to Safety
-            </button>
-          </div>
+        <div class="coach-box">
+          <span>💡</span>
+          <span>${escapeHtml(coachTip)}</span>
+        </div>
+
+        <div class="actions-row">
+          <button class="btn-safety" id="btn-back">Go Back to Safety (Recommended)</button>
+          <button class="btn-override" id="btn-proceed">Proceed Anyway (Unsafe)</button>
+        </div>
+
+        <div class="footer-note">
+          <span>SentinelAI Local Model: ${escapeHtml(modelVersion)}</span>
+          <span>Overrides are reversible anytime via popup</span>
         </div>
       </div>
     `;
 
     document.documentElement.appendChild(hostDiv);
 
-    // Primary: Go Back to Safety Button
-    shadow.getElementById('btn-safety').addEventListener('click', () => {
+    // Button Listeners
+    shadow.getElementById('btn-back').addEventListener('click', () => {
       if (window.history.length > 1) {
         window.history.back();
       } else {
@@ -421,37 +540,34 @@
       }
     });
 
-    // Secondary: Proceed Anyway
     shadow.getElementById('btn-proceed').addEventListener('click', () => {
+      // Reversible override: store in session, unlock inputs, show sticky badge
       sessionStorage.setItem(sessionDismissKey, 'true');
-      toggleInputsLock(false);
+      togglePasswordInputs(false);
       hostDiv.remove();
-      showTopWarningBanner(report);
-    });
+      showStickyBadge(report);
 
-    // Whitelist Domain
-    shadow.getElementById('btn-trust').addEventListener('click', () => {
-      chrome.runtime.sendMessage({
-        action: 'TOGGLE_WHITELIST',
-        hostname: domainText,
-        whitelist: true
-      }, () => {
-        toggleInputsLock(false);
-        hostDiv.remove();
-      });
+      // Inform background of user override
+      try {
+        chrome.runtime.sendMessage({
+          action: 'SET_USER_OVERRIDE',
+          hostname: currentHost,
+          url: window.location.href
+        });
+      } catch (e) {}
     });
   }
 
   /**
-   * Displays a persistent slim top banner if user explicitly bypasses the modal.
+   * Renders a non-intrusive sticky top warning banner for suspicious sites.
    */
   function showTopWarningBanner(report) {
-    if (document.getElementById('sentinel-top-banner-host')) return;
+    if (document.getElementById('sentinel-top-banner-host') || document.getElementById('sentinel-warning-overlay-host')) return;
 
     const bannerHost = document.createElement('div');
     bannerHost.id = 'sentinel-top-banner-host';
     const shadow = bannerHost.attachShadow({ mode: 'open' });
-    const riskPercent = Math.round((report.riskScore ?? 0.95) * 100);
+    const riskPercent = Math.round((report.riskScore ?? 0.5) * 100);
 
     shadow.innerHTML = `
       <style>
@@ -466,7 +582,7 @@
           display: flex !important;
           align-items: center !important;
           justify-content: space-between !important;
-          background: #b91c1c !important;
+          background: #d97706 !important;
           color: #ffffff !important;
           padding: 8px 16px !important;
           box-shadow: 0 2px 10px rgba(0, 0, 0, 0.4) !important;
@@ -483,17 +599,13 @@
 
         .banner-btn-safety {
           background: #ffffff;
-          color: #b91c1c;
+          color: #b45309;
           border: none;
           padding: 4px 10px;
           border-radius: 6px;
           font-size: 12px;
           font-weight: 700;
           cursor: pointer;
-        }
-
-        .banner-btn-safety:hover {
-          background: #f8fafc;
         }
 
         .banner-btn-close {
@@ -503,20 +615,16 @@
           font-size: 16px;
           cursor: pointer;
           opacity: 0.8;
-          margin-left: 8px;
-        }
-
-        .banner-btn-close:hover {
-          opacity: 1;
+          margin-left: 10px;
         }
       </style>
 
       <div class="banner-left">
-        <span>⚠ SentinelAI high-risk warning · ${riskPercent}% model probability. Do NOT enter credentials.</span>
+        <span>⚠ SentinelAI Caution · ${riskPercent}% threat probability. Exercise caution before submitting credentials.</span>
       </div>
 
       <div style="display: flex; align-items: center;">
-        <button class="banner-btn-safety" id="b-safety">Go Back to Safety</button>
+        <button class="banner-btn-safety" id="b-safety">Go Back</button>
         <button class="banner-btn-close" id="b-close" title="Dismiss">✕</button>
       </div>
     `;
@@ -536,33 +644,44 @@
     });
   }
 
-  function escapeHtml(str) {
-    if (!str) return '';
-    return str.replace(/[&<>"']/g, (m) => ({
-      '&': '&amp;',
-      '<': '&lt;',
-      '>': '&gt;',
-      '"': '&quot;',
-      "'": '&#039;'
-    }[m]));
+  function handleAssessment(assessment) {
+    if (!assessment || assessment.whitelisted) return;
+
+    if (assessment.verdict === 'malicious' || assessment.riskLevel === 'RISK') {
+      showWarningOverlay(assessment);
+    } else if (assessment.verdict === 'suspicious' || assessment.riskLevel === 'WARN') {
+      showTopWarningBanner(assessment);
+    }
   }
 
-  // Check assessment on injection
+  // ==========================================================================
+  // 4. Execution Lifecycle
+  // ==========================================================================
+
+  // Report initial DOM signals once document is ready
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', reportDomSignals);
+  } else {
+    reportDomSignals();
+  }
+
+  // Check initial assessment from background
   try {
     chrome.runtime.sendMessage({ action: 'GET_SCAN_DATA' }, (res) => {
       if (res?.success && res.assessment) {
-        if (res.assessment.riskScore > 0.75 && !res.assessment.whitelisted) {
-          showWarningOverlay(res.assessment);
-        }
+        handleAssessment(res.assessment);
       }
     });
   } catch (e) {}
 
-  // Listen for background trigger
+  // Listen for real-time messages from background service worker
   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (message.action === 'TRIGGER_WARNING_OVERLAY' && message.report) {
-      showWarningOverlay(message.report);
+      handleAssessment(message.report);
       sendResponse({ success: true });
+    }
+    if (message.action === 'EXTRACT_DOM_SIGNALS') {
+      sendResponse({ success: true, domSignals: extractDomThreatSignals() });
     }
   });
 })();

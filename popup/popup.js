@@ -2,8 +2,8 @@
  * SentinelAI: Phishing & Scam Link Shield
  * Popup Controller (Manifest V3)
  *
- * Reads directly from chrome.storage.local to display live threat score,
- * status badge, currently scanned URL, and flagged heuristics.
+ * Reliably displays active tab threat assessment, calibrated confidence,
+ * brand impersonation alerts, and provides 1-click access to the full Command Center.
  */
 
 document.addEventListener('DOMContentLoaded', async () => {
@@ -11,12 +11,15 @@ document.addEventListener('DOMContentLoaded', async () => {
   const targetDomainEl = document.getElementById('target-domain');
   const targetUrlFullEl = document.getElementById('target-url-full');
   const protocolPillEl = document.getElementById('protocol-pill');
+  const brandPillEl = document.getElementById('brand-pill');
 
   const gaugeFillEl = document.getElementById('gauge-fill');
   const threatScoreEl = document.getElementById('threat-score');
   const statusBadgeEl = document.getElementById('status-badge');
   const statusTextEl = document.getElementById('status-text');
   const verdictSummaryEl = document.getElementById('verdict-summary');
+  const confidenceLabelEl = document.getElementById('confidence-label');
+
   const modelNameEl = document.getElementById('model-name');
   const modelVersionEl = document.getElementById('model-version');
   const benignProbabilityEl = document.getElementById('benign-probability');
@@ -31,6 +34,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const rescanSpin = document.getElementById('rescan-spin');
   const btnWhitelist = document.getElementById('btn-whitelist');
   const whitelistLabel = document.getElementById('whitelist-label');
+  const openConsoleButton = document.getElementById('btn-open-console');
 
   let currentTabId = null;
   let currentAssessment = null;
@@ -38,9 +42,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   // SVG Gauge circumference: 2 * PI * 40 = 251.2
   const GAUGE_CIRCUMFERENCE = 251.2;
 
-  /**
-   * Animates the radial progress gauge.
-   */
   function setGauge(percent, color) {
     if (!gaugeFillEl) return;
     const clamped = Math.max(0, Math.min(100, percent));
@@ -49,22 +50,18 @@ document.addEventListener('DOMContentLoaded', async () => {
     gaugeFillEl.style.stroke = color;
   }
 
-  /**
-   * Renders the complete assessment report into the popup UI.
-   */
   function renderReport(report) {
     currentAssessment = report;
     if (!report) return;
 
-    // 1. Scanned URL & Domain
     const domain = report.hostname || 'Unknown Host';
     const fullUrl = report.url || domain;
 
     if (targetDomainEl) targetDomainEl.textContent = domain;
     if (targetUrlFullEl) targetUrlFullEl.textContent = fullUrl;
 
-    // Protocol badge
-    const isHttps = report.breakdown?.isHttps || (fullUrl.startsWith('https://'));
+    // Protocol and Brand Pills
+    const isHttps = fullUrl.startsWith('https://');
     if (protocolPillEl) {
       if (report.riskLevel === 'INTERNAL') {
         protocolPillEl.textContent = 'SYSTEM';
@@ -75,137 +72,121 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
     }
 
-    // 2. Score & Status Badge
-    const riskPercent = Math.round((report.riskScore || 0) * 100);
+    if (brandPillEl) {
+      if (report.brandMatch) {
+        brandPillEl.textContent = `Impersonates: ${report.brandMatch}`;
+        brandPillEl.classList.remove('hidden');
+      } else {
+        brandPillEl.classList.add('hidden');
+      }
+    }
+
+    // Score & Gauge
+    const riskPercent = Math.round((report.riskScore ?? 0) * 100);
     if (threatScoreEl) threatScoreEl.textContent = `${riskPercent}%`;
-    const phishingProbability = Number(report.probabilities?.phishing ?? report.riskScore ?? 0);
-    const benignProbability = Number(report.probabilities?.benign ?? (1 - phishingProbability));
-    if (modelNameEl) modelNameEl.textContent = report.modelType || 'Trained Random Forest';
-    if (modelVersionEl) modelVersionEl.textContent = report.modelVersion || 'No inference';
-    if (benignProbabilityEl) benignProbabilityEl.textContent = `${(benignProbability * 100).toFixed(2)}%`;
-    if (phishingProbabilityEl) phishingProbabilityEl.textContent = `${(phishingProbability * 100).toFixed(2)}%`;
-    if (benignProbabilityBar) benignProbabilityBar.style.width = `${Math.max(0, Math.min(100, benignProbability * 100))}%`;
-    if (phishingProbabilityBar) phishingProbabilityBar.style.width = `${Math.max(0, Math.min(100, phishingProbability * 100))}%`;
 
-    // Whitelisted handling
-    if (report.whitelisted) {
-      setGauge(0, '#10b981');
-      if (statusBadgeEl) statusBadgeEl.className = 'status-badge badge-safe';
-      if (statusTextEl) statusTextEl.textContent = 'Trusted Domain';
-      if (verdictSummaryEl) {
-        verdictSummaryEl.textContent = 'This domain is on your personal trusted list. Protection alerts bypassed.';
-      }
-      updateWhitelistBtn(true);
-      if (flagsBadgeEl) {
-        flagsBadgeEl.textContent = 'Trusted';
-        flagsBadgeEl.className = 'count-pill pill-zero';
-      }
-      if (flagsListEl) {
-        flagsListEl.innerHTML = `
-          <div class="clean-box">
-            <div class="clean-text">
-              <span class="clean-title">Domain Whitelisted by User</span>
-              <span class="clean-desc">You marked this domain as trusted. Click "Trusted (Remove)" to re-enable security scanning.</span>
-            </div>
-          </div>
-        `;
-      }
-      return;
-    }
+    const confidenceVal = Math.round((report.confidence ?? 0.85) * 100);
+    if (confidenceLabelEl) confidenceLabelEl.textContent = `${confidenceVal}% Calibrated Confidence`;
 
-    updateWhitelistBtn(false);
+    // Verdict styling
+    const verdict = report.verdict || (report.riskScore >= 0.75 ? 'malicious' : report.riskScore >= 0.40 ? 'suspicious' : 'safe');
 
-    // Dynamic Verdict & Gauge Color
-    if (report.riskLevel === 'RISK' || (report.riskScore > 0.75)) {
-      setGauge(riskPercent, '#ef4444');
-      if (statusBadgeEl) statusBadgeEl.className = 'status-badge badge-risk';
-      if (statusTextEl) statusTextEl.textContent = 'High Risk Phishing';
-      if (verdictSummaryEl) {
-        verdictSummaryEl.textContent = report.statusText || 'Critical threat: High probability of credential theft or scam links.';
-      }
-    } else if (report.riskLevel === 'WARN' || (report.riskScore >= 0.40)) {
-      setGauge(riskPercent, '#f59e0b');
-      if (statusBadgeEl) statusBadgeEl.className = 'status-badge badge-warn';
-      if (statusTextEl) statusTextEl.textContent = 'Suspicious Link';
-      if (verdictSummaryEl) {
-        verdictSummaryEl.textContent = report.statusText || 'Caution: Unusual domain characteristics or keywords detected.';
-      }
-    } else if (report.riskLevel === 'INTERNAL') {
-      setGauge(0, '#10b981');
-      if (statusBadgeEl) statusBadgeEl.className = 'status-badge badge-safe';
-      if (statusTextEl) statusTextEl.textContent = 'Browser System';
-      if (verdictSummaryEl) {
-        verdictSummaryEl.textContent = 'Internal browser system page. Securely isolated in browser sandbox.';
-      }
-    } else {
-      setGauge(riskPercent, '#10b981');
-      if (statusBadgeEl) statusBadgeEl.className = 'status-badge badge-safe';
-      if (statusTextEl) statusTextEl.textContent = 'Safe Site';
-      if (verdictSummaryEl) {
-        verdictSummaryEl.textContent = report.statusText || 'Clean URL structure: Zero deceptive phishing patterns detected.';
+    if (statusBadgeEl && statusTextEl) {
+      if (report.whitelisted || report.riskLevel === 'WHITELISTED') {
+        statusBadgeEl.className = 'status-badge badge-safe';
+        statusTextEl.textContent = 'Trusted Whitelist';
+        setGauge(0, '#10b981');
+      } else if (report.riskLevel === 'INTERNAL') {
+        statusBadgeEl.className = 'status-badge badge-neutral';
+        statusTextEl.textContent = 'System Page';
+        setGauge(0, '#64748b');
+      } else if (verdict === 'malicious') {
+        statusBadgeEl.className = 'status-badge badge-danger';
+        statusTextEl.textContent = 'Critical Risk';
+        setGauge(riskPercent, '#ef4444');
+      } else if (verdict === 'suspicious') {
+        statusBadgeEl.className = 'status-badge badge-warning';
+        statusTextEl.textContent = 'Suspicious Link';
+        setGauge(riskPercent, '#f59e0b');
+      } else if (verdict === 'unknown') {
+        statusBadgeEl.className = 'status-badge badge-neutral';
+        statusTextEl.textContent = 'Unknown Status';
+        setGauge(riskPercent, '#64748b');
+      } else {
+        statusBadgeEl.className = 'status-badge badge-safe';
+        statusTextEl.textContent = 'Safe Site';
+        setGauge(riskPercent, '#10b981');
       }
     }
 
-    // 3. Flags breakdown
-    const flags = report.flags || [];
-    if (flags.length === 0) {
-      if (flagsBadgeEl) {
-        flagsBadgeEl.textContent = '0 Detected';
-        flagsBadgeEl.className = 'count-pill pill-zero';
-      }
-      if (flagsListEl) {
+    if (verdictSummaryEl) {
+      verdictSummaryEl.textContent = report.summary || report.statusText || 'Analysis complete.';
+    }
+
+    // Model details
+    if (modelVersionEl) modelVersionEl.textContent = report.modelVersion || 'Local Random Forest';
+    if (modelNameEl) modelNameEl.textContent = report.modelType || 'Random Forest Ensemble';
+
+    const pBenign = report.probabilities?.benign ?? (1 - (report.riskScore || 0));
+    const pPhish = report.probabilities?.phishing ?? (report.riskScore || 0);
+
+    if (benignProbabilityEl) benignProbabilityEl.textContent = `${Math.round(pBenign * 100)}%`;
+    if (phishingProbabilityEl) phishingProbabilityEl.textContent = `${Math.round(pPhish * 100)}%`;
+    if (benignProbabilityBar) benignProbabilityBar.style.width = `${Math.round(pBenign * 100)}%`;
+    if (phishingProbabilityBar) phishingProbabilityBar.style.width = `${Math.round(pPhish * 100)}%`;
+
+    // Evidence & Flags
+    const evidenceList = report.evidence || [];
+    if (flagsBadgeEl) {
+      flagsBadgeEl.textContent = `${evidenceList.length} Detected`;
+      flagsBadgeEl.className = evidenceList.length > 0 ? 'count-pill pill-active' : 'count-pill pill-zero';
+    }
+
+    if (flagsListEl) {
+      flagsListEl.innerHTML = '';
+      if (evidenceList.length === 0) {
         flagsListEl.innerHTML = `
           <div class="clean-box">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2.3">
               <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
               <polyline points="22 4 12 14.01 9 11.01"/>
             </svg>
             <div class="clean-text">
-              <span class="clean-title">All URL checks passed</span>
-              <span class="clean-desc">No deceptive keywords, raw IP address, or phishing tactics detected.</span>
+              <span class="clean-title">All checks normal</span>
+              <span class="clean-desc">No deceptive brand signals, raw IP, or phishing tactics detected.</span>
             </div>
           </div>
         `;
-      }
-    } else {
-      if (flagsBadgeEl) {
-        flagsBadgeEl.textContent = `${flags.length} Flag${flags.length === 1 ? '' : 's'}`;
-        flagsBadgeEl.className = 'count-pill pill-active';
-      }
-      if (flagsListEl) {
-        flagsListEl.innerHTML = flags.map(flag => {
-          const lower = flag.toLowerCase();
-          const isCritical = lower.includes('ip address') || lower.includes('unencrypted') || lower.includes('@') || lower.includes('high-abuse');
-          const rowClass = isCritical ? 'flag-item' : 'flag-item flag-warning';
-          return `
-            <div class="${rowClass}">
-              <svg class="flag-icon-svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
-                <line x1="12" y1="9" x2="12" y2="13"/>
-                <line x1="12" y1="17" x2="12.01" y2="17"/>
-              </svg>
-              <span>${escapeHtml(flag)}</span>
-            </div>
+      } else {
+        evidenceList.forEach(item => {
+          const row = document.createElement('div');
+          row.className = 'flag-item';
+          const isHigh = item.severity === 'high';
+          const iconColor = isHigh ? '#ef4444' : '#f59e0b';
+          const detailText = item.detail || (typeof item === 'string' ? item : item.title);
+
+          row.innerHTML = `
+            <svg class="flag-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="${iconColor}" stroke-width="2.2">
+              <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+              <line x1="12" y1="9" x2="12" y2="13"/>
+              <line x1="12" y1="17" x2="12.01" y2="17"/>
+            </svg>
+            <span class="flag-text">${escapeHtml(detailText)}</span>
           `;
-        }).join('');
+          flagsListEl.appendChild(row);
+        });
       }
     }
-  }
 
-  function updateWhitelistBtn(isWhitelisted) {
-    if (!btnWhitelist || !whitelistLabel) return;
-    if (isWhitelisted) {
-      btnWhitelist.classList.add('is-whitelisted');
-      whitelistLabel.textContent = 'Trusted (Remove)';
-    } else {
-      btnWhitelist.classList.remove('is-whitelisted');
-      whitelistLabel.textContent = 'Trust Domain';
+    // Whitelist button state
+    if (whitelistLabel) {
+      whitelistLabel.textContent = report.whitelisted ? 'Remove Trust' : 'Trust Domain';
     }
   }
 
   function escapeHtml(str) {
     if (!str) return '';
-    return str.replace(/[&<>"']/g, (m) => ({
+    return String(str).replace(/[&<>"']/g, (m) => ({
       '&': '&amp;',
       '<': '&lt;',
       '>': '&gt;',
@@ -215,64 +196,55 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   /**
-   * Loads the scan report from chrome.storage.local for the active tab.
+   * Loads assessment strictly for the active tab in current window.
    */
   async function loadActiveReport() {
     try {
-      const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
-      if (!tabs || tabs.length === 0) return;
-
-      currentTabId = tabs[0].id;
-
-      // 1. Read directly from chrome.storage.local
-      const storageKey = `tab_${currentTabId}`;
-      const data = await chrome.storage.local.get([storageKey, 'last_scan_result']);
-
-      if (data && data[storageKey]) {
-        renderReport(data[storageKey]);
-      } else if (data && data.last_scan_result) {
-        renderReport(data.last_scan_result);
-      } else {
-        // Fallback: ask background service worker
-        chrome.runtime.sendMessage({ action: 'GET_SCAN_DATA', tabId: currentTabId }, (res) => {
-          if (res?.success && res.assessment) {
-            renderReport(res.assessment);
-          }
-        });
+      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+      if (!tab || !tab.id) {
+        renderFallback('No active browser tab found.');
+        return;
       }
-    } catch (err) {
-      console.warn('[SentinelAI Popup] Init error:', err);
+      currentTabId = tab.id;
+
+      chrome.runtime.sendMessage({ action: 'GET_SCAN_DATA', tabId: currentTabId }, (res) => {
+        if (chrome.runtime.lastError) {
+          renderFallback('Connecting to SentinelAI background engine...');
+          return;
+        }
+        if (res?.success && res.assessment) {
+          renderReport(res.assessment);
+        } else {
+          renderFallback('Waiting for page scan...');
+        }
+      });
+    } catch (e) {
+      renderFallback('Error querying browser tab.');
     }
   }
 
-  // Real-time listener: updates popup dashboard if storage changes
-  chrome.storage.onChanged.addListener((changes, areaName) => {
-    if (areaName === 'local' && currentTabId) {
-      const key = `tab_${currentTabId}`;
-      if (changes[key] && changes[key].newValue) {
-        renderReport(changes[key].newValue);
-      }
-    }
-  });
+  function renderFallback(message) {
+    if (verdictSummaryEl) verdictSummaryEl.textContent = message;
+    if (threatScoreEl) threatScoreEl.textContent = '--';
+  }
 
-  // Re-scan Button
+  // Re-scan button
   if (btnRescan) {
     btnRescan.addEventListener('click', () => {
       if (!currentTabId) return;
-      if (rescanSpin) rescanSpin.classList.add('spin-icon');
-      btnRescan.disabled = true;
-
+      if (rescanSpin) rescanSpin.classList.add('spinning');
       chrome.runtime.sendMessage({ action: 'RESCAN_TAB', tabId: currentTabId }, (res) => {
-        if (rescanSpin) rescanSpin.classList.remove('spin-icon');
-        btnRescan.disabled = false;
-        if (res?.success && res.assessment) {
-          renderReport(res.assessment);
-        }
+        setTimeout(() => {
+          if (rescanSpin) rescanSpin.classList.remove('spinning');
+          if (res?.success && res.assessment) {
+            renderReport(res.assessment);
+          }
+        }, 300);
       });
     });
   }
 
-  // Whitelist Button
+  // Whitelist button
   if (btnWhitelist) {
     btnWhitelist.addEventListener('click', () => {
       if (!currentAssessment || !currentAssessment.hostname) return;
@@ -293,35 +265,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
 
-  const dashboardSync = document.getElementById('dashboard-sync');
-  const openConsoleButton = document.getElementById('btn-open-console');
-
-  if (dashboardSync) {
-    chrome.storage.local.get(['sentinel_local_dashboard_sync'], (values) => {
-      if (chrome.runtime.lastError) {
-        console.warn('[SentinelAI Popup] Could not load dashboard sync preference:', chrome.runtime.lastError.message);
-        return;
-      }
-      dashboardSync.checked = values.sentinel_local_dashboard_sync === true;
-    });
-
-    dashboardSync.addEventListener('change', () => {
-      chrome.storage.local.set({ sentinel_local_dashboard_sync: dashboardSync.checked }, () => {
-        if (chrome.runtime.lastError) {
-          console.warn('[SentinelAI Popup] Could not save dashboard sync preference:', chrome.runtime.lastError.message);
-          dashboardSync.checked = !dashboardSync.checked;
-        }
-      });
-    });
-  }
-
+  // Open Command Center (uses chrome-extension URL so it works 100% offline without backend!)
   if (openConsoleButton) {
     openConsoleButton.addEventListener('click', () => {
-      chrome.tabs.create({ url: 'http://127.0.0.1:8000' }, () => {
-        if (chrome.runtime.lastError) {
-          console.warn('[SentinelAI Popup] Could not open the local security console:', chrome.runtime.lastError.message);
-        }
-      });
+      chrome.runtime.sendMessage({ action: 'OPEN_DASHBOARD', view: 'overview' });
     });
   }
 
