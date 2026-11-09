@@ -916,17 +916,28 @@ def get_search_history(
 # --- Administrative Operations & Metrics ---
 
 def list_all_users() -> List[Dict[str, Any]]:
-    """Returns all users without password hashes for administrative management."""
+    """Returns all users without password hashes, along with live login/session status."""
+    now_epoch = time.time()
     with get_connection() as conn:
         rows = conn.execute(
             """
-            SELECT id, email, name, auth_provider, avatar_url,
-                   two_factor_enabled, role, created_at, last_login
-            FROM users
-            ORDER BY id ASC
-            """
+            SELECT u.id, u.email, u.name, u.auth_provider, u.avatar_url,
+                   u.two_factor_enabled, u.role, u.created_at, u.last_login,
+                   u.phone, u.scan_tokens, u.scans_used, u.account_tier,
+                   COUNT(s.token) as active_sessions
+            FROM users u
+            LEFT JOIN sessions s ON u.id = s.user_id AND s.expires_at > ?
+            GROUP BY u.id
+            ORDER BY u.id ASC
+            """,
+            (now_epoch,)
         ).fetchall()
-        return [dict(r) for r in rows]
+        result = []
+        for r in rows:
+            d = dict(r)
+            d["is_logged_in"] = (d.get("active_sessions", 0) > 0)
+            result.append(d)
+        return result
 
 
 def delete_user(user_id: int) -> bool:
