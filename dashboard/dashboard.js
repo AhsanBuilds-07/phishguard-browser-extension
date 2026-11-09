@@ -654,8 +654,8 @@
       listEl.innerHTML = state.datasets.map((ds, idx) => `
         <div class="dataset-item ${idx === 0 ? 'selected' : ''}" data-name="${escapeHtml(ds.name)}" style="padding:12px; border-bottom:1px solid var(--line); cursor:pointer;">
           <strong style="color:var(--ink); font-size:13px;">${escapeHtml(ds.name)}</strong>
-          <div style="font-size:11px; color:var(--ink-2); margin-top:2px;">${escapeHtml(String(ds.rows))} rows · ${escapeHtml(ds.size || '')}</div>
-          <div style="font-size:10px; color:var(--ink-3); margin-top:4px;">${escapeHtml(ds.license || 'Documented')}</div>
+          <div style="font-size:12px; color:var(--ink-2); margin-top:2px;">${escapeHtml(String(ds.rows))} rows · ${escapeHtml(ds.size || '')}</div>
+          <div style="font-size:11px; color:var(--ink-3); margin-top:4px;">${escapeHtml(ds.license || 'Documented')}</div>
         </div>
       `).join('');
 
@@ -684,12 +684,12 @@
     if (summary) {
       if (name === 'dataset.csv') {
         summary.innerHTML = `
-          <div style="display:flex; gap:16px; flex-wrap:wrap; font-size:12px;">
-            <div><strong>Total Samples:</strong> 8,000</div>
-            <div><strong>Phishing:</strong> 4,000 (50.0%)</div>
-            <div><strong>Benign:</strong> 4,000 (50.0%)</div>
-            <div><strong>Unique Domains:</strong> 5,382</div>
-            <div><strong>Leakage Protection:</strong> GroupShuffleSplit on eTLD+1</div>
+          <div class="dataset-stats">
+            <div class="dataset-stat"><span>Total Samples</span><b>8,000</b></div>
+            <div class="dataset-stat"><span>Phishing</span><b>4,000 (50.0%)</b></div>
+            <div class="dataset-stat"><span>Benign</span><b>4,000 (50.0%)</b></div>
+            <div class="dataset-stat"><span>Unique Domains</span><b>5,382</b></div>
+            <div class="dataset-stat"><span>Leakage Protection</span><b>GroupShuffleSplit on eTLD+1</b></div>
           </div>
         `;
       } else {

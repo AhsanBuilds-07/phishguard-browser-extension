@@ -39,9 +39,9 @@
   --line-hi: #34373c;
 
   --ink: #ededed;
-  --ink-2: #a1a3a8;
-  --ink-3: #6b6e75;
-  --ink-4: #3a3d42;
+  --ink-2: #c4c6cc;
+  --ink-3: #9497a0;
+  --ink-4: #686b73;
 
   --accent: #ff5a00;
   --accent-hi: #ff7a2e;
@@ -142,7 +142,7 @@ code {
 .label {
   display: inline-block;
   font-family: var(--mono);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 400;
   letter-spacing: 0.14em;
   text-transform: uppercase;
@@ -265,7 +265,7 @@ code {
 .btn-sm {
   height: 36px;
   padding: 0 14px;
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .btn-block {
@@ -298,7 +298,7 @@ code {
   padding: 0 10px;
   border: 1px solid var(--line-hi);
   font-family: var(--mono);
-  font-size: 11px;
+  font-size: 12px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--ink-2);

@@ -225,7 +225,7 @@
   display: block;
   margin-top: 6px;
   font-family: var(--mono);
-  font-size: 11px;
+  font-size: 12px;
   color: var(--ink-3);
 }
 
@@ -259,7 +259,7 @@
 }
 
 .scanner-bar .label {
-  font-size: 10px;
+  font-size: 11px;
 }
 
 .scanner-status {
@@ -267,7 +267,7 @@
   align-items: center;
   gap: 8px;
   font-family: var(--mono);
-  font-size: 10px;
+  font-size: 11px;
   letter-spacing: 0.12em;
   color: var(--ink-2);
 }
@@ -386,7 +386,7 @@
 .scanner-score small {
   margin-top: 8px;
   font-family: var(--mono);
-  font-size: 10px;
+  font-size: 11px;
   color: var(--ink-3);
 }
 
@@ -420,7 +420,7 @@
   padding: 8px 18px 16px;
   border-bottom: 1px solid var(--line);
   font-family: var(--mono);
-  font-size: 10px;
+  font-size: 11px;
   color: var(--ink-3);
 }
 
@@ -446,13 +446,13 @@
 
 .scanner-evidence .n {
   font-family: var(--mono);
-  font-size: 10px;
+  font-size: 11px;
   color: var(--ink-4);
 }
 
 .scanner-evidence .sev {
   font-family: var(--mono);
-  font-size: 10px;
+  font-size: 11px;
   letter-spacing: 0.08em;
   color: var(--ink-3);
 }
@@ -478,7 +478,7 @@
   padding: 12px 18px;
   border-top: 1px solid var(--line);
   font-family: var(--mono);
-  font-size: 10px;
+  font-size: 11px;
   color: var(--ink-3);
 }
 
@@ -495,7 +495,7 @@
   padding: 0 10px;
   border: 1px solid var(--line);
   font-family: var(--mono);
-  font-size: 11px;
+  font-size: 12px;
   color: var(--ink-2);
   transition: border-color 0ms, color 120ms linear, transform 50ms linear;
 }
@@ -571,7 +571,7 @@
 
 .ticker-item b {
   font-weight: 800;
-  font-size: 10px;
+  font-size: 11px;
   letter-spacing: 0.1em;
   padding: 2px 5px;
   background: var(--danger);
@@ -747,7 +747,7 @@
 .step {
   position: relative;
   padding: 8px 0 72px;
-  opacity: 0.35;
+  opacity: 0.45;
   transition: opacity 300ms linear;
 }
 
@@ -889,7 +889,7 @@
   transform: translateX(-50%);
   font-family: var(--mono);
   font-weight: 400;
-  font-size: 10px;
+  font-size: 11px;
   letter-spacing: 0.04em;
   color: var(--danger);
   white-space: nowrap;
@@ -901,7 +901,7 @@
   gap: 12px;
   margin-top: 40px;
   font-family: var(--mono);
-  font-size: 11px;
+  font-size: 12px;
   color: var(--ink-3);
 }
 
@@ -921,7 +921,7 @@
   display: block;
   padding: 8px 12px 0;
   font-family: var(--mono);
-  font-size: 10px;
+  font-size: 11px;
   letter-spacing: 0.1em;
   color: var(--ink-3);
   text-transform: uppercase;
@@ -939,7 +939,7 @@
 
 .guard-field i {
   font-style: normal;
-  font-size: 10px;
+  font-size: 11px;
   letter-spacing: 0.1em;
   padding: 3px 6px;
   background: var(--ink);
@@ -951,7 +951,7 @@
   padding: 10px 12px;
   border: 1px solid var(--line);
   font-family: var(--mono);
-  font-size: 11px;
+  font-size: 12px;
   color: var(--ink-3);
   line-height: 1.7;
 }
@@ -1047,7 +1047,7 @@
 .compare thead th {
   font-family: var(--mono);
   font-weight: 400;
-  font-size: 11px;
+  font-size: 12px;
   letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--ink-3);
@@ -1195,7 +1195,7 @@
   color: var(--accent-ink);
   font-family: var(--mono);
   font-weight: 800;
-  font-size: 10px;
+  font-size: 11px;
   letter-spacing: 0.1em;
 }
 
@@ -1262,7 +1262,7 @@
 .foot h4 {
   font-family: var(--mono);
   font-weight: 400;
-  font-size: 11px;
+  font-size: 12px;
   letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--ink-3);
@@ -1290,7 +1290,7 @@
   padding-top: 20px;
   border-top: 1px solid var(--line);
   font-family: var(--mono);
-  font-size: 11px;
+  font-size: 12px;
   color: var(--ink-4);
 }
 
@@ -1504,4 +1504,199 @@
   .foot-base {
     flex-direction: column;
   }
+}
+
+/* --------------------------------------------------------------------------
+   Legibility + motion layer
+   Brighter body copy and wider tracking on small mono labels, plus hover
+   and idle micro-interactions. Entrances stay with GSAP in landing.js, so
+   nothing here transforms a [data-reveal] / [data-hero] element directly.
+   -------------------------------------------------------------------------- */
+
+body {
+  text-rendering: optimizeLegibility;
+}
+
+.label {
+  letter-spacing: 0.16em;
+}
+
+.hero-lead,
+.section-head p,
+.pipeline-sticky p,
+.step p,
+.feat p,
+.feat-row p,
+.number p,
+.plan-desc {
+  line-height: 1.65;
+}
+
+/* Accent squares on section labels breathe */
+.label-accent::before {
+  animation: label-pulse 2.8s var(--snap) infinite;
+}
+
+@keyframes label-pulse {
+  0%, 70%, 100% { transform: none; box-shadow: 0 0 0 0 rgba(255, 90, 0, 0.5); }
+  80% { transform: scale(1.35); box-shadow: 0 0 0 5px rgba(255, 90, 0, 0); }
+}
+
+/* Hero full stop blinks like a terminal cursor once the intro has played */
+.hero-title .dot {
+  animation: cursor-blink 1.1s steps(1, end) 2.4s infinite;
+}
+
+@keyframes cursor-blink {
+  0%, 60% { opacity: 1; }
+  61%, 100% { opacity: 0.2; }
+}
+
+/* LEDs get a soft halo alongside their blink */
+.led {
+  animation: led-blink 2.4s steps(1, end) infinite, led-halo 2.4s ease-out infinite;
+}
+
+@keyframes led-halo {
+  0% { box-shadow: 0 0 0 0 rgba(70, 201, 139, 0.55); }
+  70%, 100% { box-shadow: 0 0 0 7px rgba(70, 201, 139, 0); }
+}
+
+/* Primary buttons: light sweep on hover */
+.btn-primary {
+  overflow: hidden;
+}
+
+.btn-primary::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(110deg, transparent 30%, rgba(255, 255, 255, 0.35) 50%, transparent 70%);
+  transform: translate3d(-120%, 0, 0);
+  pointer-events: none;
+}
+
+.btn-primary:hover::after {
+  transform: translate3d(120%, 0, 0);
+  transition: transform 700ms var(--snap);
+}
+
+/* Live scanner: frame warms up when you interact with it */
+.scanner {
+  transition: border-color 200ms linear, box-shadow 300ms linear;
+}
+
+.scanner:hover,
+.scanner:focus-within {
+  border-color: var(--line-hi);
+  box-shadow: 0 0 0 1px rgba(255, 90, 0, 0.12), 0 24px 60px -30px rgba(255, 90, 0, 0.35);
+}
+
+/* Big numbers: accent rule draws under the hovered figure */
+.number {
+  position: relative;
+}
+
+.number::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  bottom: -1px;
+  width: 64px;
+  height: 2px;
+  background: var(--accent);
+  transform: scaleX(0);
+  transform-origin: 0 50%;
+  transition: transform 420ms var(--snap);
+}
+
+.number + .number::after {
+  left: 28px;
+}
+
+.number:hover::after {
+  transform: scaleX(1);
+}
+
+.number p {
+  transition: color 160ms linear;
+}
+
+.number:hover p {
+  color: var(--ink);
+}
+
+/* Pipeline steps: code chips light up on hover */
+.step code {
+  transition: border-color 160ms linear, color 160ms linear;
+}
+
+.step:hover code {
+  border-color: var(--accent);
+  color: var(--ink);
+}
+
+/* Feature rows: accent bar slides in from the left */
+.feat-row {
+  position: relative;
+}
+
+.feat-row::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: -1px;
+  height: 1px;
+  width: 100%;
+  background: var(--accent);
+  transform: scaleX(0);
+  transform-origin: 0 50%;
+  transition: transform 520ms var(--snap);
+}
+
+.feat-row:hover::before {
+  transform: scaleX(1);
+}
+
+.feat-row .n {
+  transition: color 160ms linear;
+}
+
+.feat-row:hover .n {
+  color: var(--accent);
+}
+
+/* Feature cards and plans: surface lifts on hover */
+.feat,
+.plan {
+  transition: background-color 220ms linear;
+}
+
+.feat:hover {
+  background: var(--card);
+}
+
+.plan {
+  position: relative;
+}
+
+.plan::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 2px;
+  background: var(--accent);
+  transform: scaleX(0);
+  transform-origin: 0 50%;
+  transition: transform 480ms var(--snap);
+}
+
+.plan:not(.plan-featured):hover {
+  background: var(--card);
+}
+
+.plan:hover::after {
+  transform: scaleX(1);
 }
