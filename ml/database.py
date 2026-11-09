@@ -413,8 +413,18 @@ def update_user_login_timestamp(user_id: int) -> None:
         conn.commit()
 
 
+OTP_RESEND_COOLDOWN_SECONDS = 30.0
+OTP_TTL_SECONDS = 300.0
+
+
 def create_2fa_challenge(user_id: int, channel: str = "email") -> Tuple[str, str]:
     """Generates a temporary token and a 6-digit challenge code valid for 5 minutes."""
+    temp_token, code, _ = create_2fa_challenge_with_dispatch(user_id, channel=channel)
+    return temp_token, code
+
+
+def create_2fa_challenge_with_dispatch(user_id: int, channel: str = "email") -> Tuple[str, str, Dict[str, Any]]:
+    """Same as create_2fa_challenge, but also returns the carrier dispatch receipt."""
     temp_token = secrets.token_urlsafe(32)
     # Generate 6-digit numeric SMS/Email code or use user's TOTP
     user = get_user_by_id(user_id)
@@ -423,7 +433,7 @@ def create_2fa_challenge(user_id: int, channel: str = "email") -> Tuple[str, str
     else:
         code = f"{secrets.randbelow(900000) + 100000:06d}"
 
-    expires_at = time.time() + 300.0  # 5 minutes
+    expires_at = time.time() + OTP_TTL_SECONDS
     with get_connection() as conn:
         conn.execute(
             "INSERT OR REPLACE INTO two_factor_challenges (temp_token, user_id, code, expires_at) VALUES (?, ?, ?, ?)",
@@ -431,8 +441,9 @@ def create_2fa_challenge(user_id: int, channel: str = "email") -> Tuple[str, str
         )
         conn.commit()
 
+    dispatch: Dict[str, Any] = {}
     if user:
-        dispatch_otp(
+        dispatch = dispatch_otp(
             recipient_email=user["email"],
             code=code,
             recipient_phone=user.get("phone"),
@@ -440,52 +451,164 @@ def create_2fa_challenge(user_id: int, channel: str = "email") -> Tuple[str, str
             user_id=user["id"]
         )
 
-    return temp_token, code
+    return temp_token, code, dispatch
+
+
+class OtpResendCooldown(Exception):
+    """Raised when a resend is requested before the cooldown window has elapsed."""
+
+    def __init__(self, retry_after: int):
+        super().__init__(f"Please wait {retry_after}s before requesting another code.")
+        self.retry_after = retry_after
+
+
+def reissue_2fa_challenge(temp_token: str) -> Optional[Tuple[str, Dict[str, Any]]]:
+    """Rotates a pending challenge to a brand-new random 6-digit code and re-dispatches it.
+
+    Returns None when the challenge is unknown or expired. Raises OtpResendCooldown when
+    called again within OTP_RESEND_COOLDOWN_SECONDS, which keeps paid SMS gateways from
+    being pumped by repeated clicks.
+    """
+    now = time.time()
+    with get_connection() as conn:
+        row = conn.execute(
+            "SELECT user_id FROM two_factor_challenges WHERE temp_token = ? AND expires_at > ?",
+            (temp_token, now),
+        ).fetchone()
+        if not row:
+            return None
+        user_id = row["user_id"]
+
+        last = conn.execute(
+            "SELECT created_at FROM otp_dispatches WHERE user_id = ? ORDER BY id DESC LIMIT 1",
+            (user_id,),
+        ).fetchone()
+        if last:
+            try:
+                elapsed = now - datetime.fromisoformat(last["created_at"]).timestamp()
+            except ValueError:
+                elapsed = OTP_RESEND_COOLDOWN_SECONDS
+            if elapsed < OTP_RESEND_COOLDOWN_SECONDS:
+                raise OtpResendCooldown(int(OTP_RESEND_COOLDOWN_SECONDS - elapsed) + 1)
+
+        # Always a fresh random code: the TOTP value would repeat inside its 30s window.
+        code = f"{secrets.randbelow(900000) + 100000:06d}"
+        conn.execute(
+            "UPDATE two_factor_challenges SET code = ?, expires_at = ? WHERE temp_token = ?",
+            (code, now + OTP_TTL_SECONDS, temp_token),
+        )
+        conn.commit()
+
+    user = get_user_by_id(user_id)
+    if not user:
+        return None
+    dispatch = dispatch_otp(
+        recipient_email=user["email"],
+        code=code,
+        recipient_phone=user.get("phone"),
+        channel="sms" if user.get("phone") else "email",
+        user_id=user_id,
+    )
+    return code, dispatch
+
+
+def _normalize_indian_mobile(phone: str) -> Optional[str]:
+    """Returns the 10-digit subscriber number for +91 mobiles, else None."""
+    raw = phone.strip()
+    if raw.startswith("+") and not raw.startswith("+91"):
+        return None
+    digits = re.sub(r"[^\d]", "", raw)
+    if len(digits) == 12 and digits.startswith("91"):
+        digits = digits[2:]
+    elif len(digits) == 11 and digits.startswith("0"):
+        digits = digits[1:]
+    if len(digits) == 10 and digits[0] in "6789":
+        return digits
+    return None
+
+
+def _send_via_fast2sms(api_key: str, number: str, code: str) -> Dict[str, Any]:
+    # The key travels in the authorization header so it never lands in URL/access logs.
+    body = urllib.parse.urlencode({
+        "route": "otp",
+        "variables_values": code,
+        "numbers": number,
+        "flash": "0",
+    }).encode()
+    req = urllib.request.Request(
+        "https://www.fast2sms.com/dev/bulkV2",
+        data=body,
+        method="POST",
+        headers={
+            "authorization": api_key,
+            "Content-Type": "application/x-www-form-urlencoded",
+            "User-Agent": "SentinelAI-SMS-Engine",
+        },
+    )
+    with urllib.request.urlopen(req, timeout=5) as resp:
+        data = json.loads(resp.read().decode())
+    logger.info("Fast2SMS dispatch accepted=%s request_id=%s", data.get("return"), data.get("request_id"))
+    return {"carrier": "Fast2SMS", "delivered": bool(data.get("return")), "simulated": False}
+
+
+def _send_via_twilio(sid: str, token: str, phone: str, code: str) -> Dict[str, Any]:
+    params = {
+        "To": phone if phone.strip().startswith("+") else "+" + re.sub(r"[^\d]", "", phone),
+        "Body": f"[SentinelAI] Your 6-digit verification code is: {code}. Valid for 5 minutes.",
+    }
+    messaging_service = os.environ.get("TWILIO_MESSAGING_SERVICE_SID")
+    if messaging_service:
+        params["MessagingServiceSid"] = messaging_service
+    else:
+        params["From"] = os.environ.get("TWILIO_PHONE_NUMBER", "")
+    req = urllib.request.Request(
+        f"https://api.twilio.com/2010-04-01/Accounts/{sid}/Messages.json",
+        data=urllib.parse.urlencode(params).encode(),
+        method="POST",
+    )
+    auth_header = base64.b64encode(f"{sid}:{token}".encode()).decode()
+    req.add_header("Authorization", f"Basic {auth_header}")
+    with urllib.request.urlopen(req, timeout=5) as resp:
+        data = json.loads(resp.read().decode())
+    return {"carrier": "Twilio", "delivered": True, "simulated": False, "sid": data.get("sid")}
 
 
 def _send_carrier_sms(phone: str, code: str) -> Dict[str, Any]:
-    """Attempts cellular SMS delivery via Fast2SMS (India) or Twilio (Global)."""
+    """Attempts cellular SMS delivery via Fast2SMS (India, +91) or Twilio (global).
+
+    Indian mobiles try Fast2SMS first and fall back to Twilio; other numbers go to Twilio.
+    With no gateway configured the dispatch is simulated and the code is surfaced on screen.
+    """
+    attempts: List[Tuple[str, Any]] = []
+    indian_number = _normalize_indian_mobile(phone)
     fast2sms_key = os.environ.get("FAST2SMS_API_KEY")
-    if fast2sms_key:
-        try:
-            clean_num = re.sub(r"[^\d]", "", phone)
-            if clean_num.startswith("91") and len(clean_num) > 10:
-                clean_num = clean_num[2:]
-            url = f"https://www.fast2sms.com/dev/bulkV2?authorization={fast2sms_key}&route=otp&variables_values={code}&flash=0&numbers={clean_num}"
-            req = urllib.request.Request(url, headers={"User-Agent": "SentinelAI-SMS-Engine"})
-            with urllib.request.urlopen(req, timeout=5) as resp:
-                data = json.loads(resp.read().decode())
-                logger.info(f"Fast2SMS dispatch response: {data}")
-                return {"carrier": "Fast2SMS", "delivered": data.get("return", True), "details": data}
-        except Exception as e:
-            logger.warning(f"Fast2SMS cellular dispatch error: {e}")
-            return {"carrier": "Fast2SMS", "delivered": False, "error": str(e)}
+    if fast2sms_key and indian_number:
+        attempts.append(("Fast2SMS", lambda: _send_via_fast2sms(fast2sms_key, indian_number, code)))
 
     twilio_sid = os.environ.get("TWILIO_ACCOUNT_SID")
     twilio_token = os.environ.get("TWILIO_AUTH_TOKEN")
-    twilio_from = os.environ.get("TWILIO_PHONE_NUMBER")
-    if twilio_sid and twilio_token and twilio_from:
-        try:
-            url = f"https://api.twilio.com/2010-04-01/Accounts/{twilio_sid}/Messages.json"
-            body = urllib.parse.urlencode({
-                "To": phone,
-                "From": twilio_from,
-                "Body": f"[SentinelAI] Your 6-digit verification code is: {code}. Valid for 5 minutes."
-            }).encode()
-            req = urllib.request.Request(url, data=body, method="POST")
-            auth_header = base64.b64encode(f"{twilio_sid}:{twilio_token}".encode()).decode()
-            req.add_header("Authorization", f"Basic {auth_header}")
-            with urllib.request.urlopen(req, timeout=5) as resp:
-                data = json.loads(resp.read().decode())
-                return {"carrier": "Twilio", "delivered": True, "sid": data.get("sid")}
-        except Exception as e:
-            logger.warning(f"Twilio cellular dispatch error: {e}")
-            return {"carrier": "Twilio", "delivered": False, "error": str(e)}
+    has_sender = os.environ.get("TWILIO_PHONE_NUMBER") or os.environ.get("TWILIO_MESSAGING_SERVICE_SID")
+    if twilio_sid and twilio_token and has_sender:
+        attempts.append(("Twilio", lambda: _send_via_twilio(twilio_sid, twilio_token, phone, code)))
 
+    last_error: Optional[Dict[str, Any]] = None
+    for carrier, send in attempts:
+        try:
+            result = send()
+            if result.get("delivered"):
+                return result
+            last_error = {"carrier": carrier, "delivered": False, "simulated": False, "error": "Gateway rejected request"}
+        except Exception as e:
+            logger.warning(f"{carrier} cellular dispatch error: {e}")
+            last_error = {"carrier": carrier, "delivered": False, "simulated": False, "error": str(e)}
+
+    if last_error:
+        return last_error
     return {
         "carrier": "Simulated Gateway",
         "delivered": True,
-        "notice": "Set FAST2SMS_API_KEY or TWILIO_ACCOUNT_SID for real telecom cellular delivery."
+        "simulated": True,
+        "notice": "Set FAST2SMS_API_KEY (+91) or TWILIO_ACCOUNT_SID/TWILIO_AUTH_TOKEN for real telecom cellular delivery."
     }
 
 
@@ -499,7 +622,8 @@ def dispatch_otp(
     """Authenticates and dispatches 6-digit OTP to user's phone or email (real carrier if configured or simulated)."""
     now_iso = datetime.now(timezone.utc).isoformat()
     target = recipient_phone if (channel == "sms" and recipient_phone) else recipient_email
-    carrier_info: Dict[str, Any] = {}
+    # No mail transport is wired up, so email codes are always sandbox-displayed.
+    carrier_info: Dict[str, Any] = {"carrier": "Simulated Mailer", "delivered": True, "simulated": True}
     if channel == "sms" and recipient_phone:
         carrier_info = _send_carrier_sms(recipient_phone, code)
 
@@ -521,6 +645,8 @@ def dispatch_otp(
         "status": delivery_status,
         "timestamp": now_iso,
         "carrier": carrier_info.get("carrier", "local"),
+        # True whenever the code did not physically reach the user (sandbox or gateway failure).
+        "simulated": bool(carrier_info.get("simulated")) or not carrier_info.get("delivered", True),
         "message": f"6-digit authentication token successfully dispatched to {target}"
     }
 
@@ -809,6 +935,12 @@ def delete_user(user_id: int) -> bool:
         conn.execute("DELETE FROM users WHERE id = ?", (user_id,))
         conn.commit()
         return True
+
+
+def set_two_factor_enabled(user_id: int, enabled: bool) -> None:
+    with get_connection() as conn:
+        conn.execute("UPDATE users SET two_factor_enabled = ? WHERE id = ?", (1 if enabled else 0, user_id))
+        conn.commit()
 
 
 def update_user_role(user_id: int, role: str) -> bool:

@@ -6,6 +6,7 @@
   <meta name="theme-color" content="#08090a">
   <title>Sign in — SentinelAI</title>
   <link rel="icon" href="/icons/icon48.png" type="image/png">
+  <script src="/assets/js/theme-init.js"></script>
   <link rel="stylesheet" href="/assets/css/brand.css">
   <style>
     body {
@@ -608,6 +609,292 @@
       opacity: 1;
     }
 
+    /* ------------------------------------------------------------------
+       Theme toggle
+       ------------------------------------------------------------------ */
+
+    :root {
+      --otp-glow: #00f0ff;
+      --otp-glow-soft: rgba(0, 240, 255, 0.12);
+      --otp-glow-line: rgba(0, 240, 255, 0.35);
+      --otp-shadow: 0 0 16px rgba(0, 240, 255, 0.4);
+      --sms-surface: linear-gradient(135deg, rgba(20, 24, 33, 0.98), rgba(12, 14, 18, 0.98));
+      --dispatch-surface: linear-gradient(180deg, rgba(255, 90, 0, 0.08) 0%, rgba(14, 16, 20, 0.98) 100%);
+      --reveal-surface: rgba(0, 0, 0, 0.7);
+    }
+
+    :root[data-theme="light"] {
+      --otp-glow: #0e7490;
+      --otp-glow-soft: rgba(14, 116, 144, 0.1);
+      --otp-glow-line: rgba(14, 116, 144, 0.35);
+      --otp-shadow: none;
+      --sms-surface: #ffffff;
+      --dispatch-surface: linear-gradient(180deg, rgba(224, 79, 0, 0.06) 0%, #ffffff 100%);
+      --reveal-surface: #f1f5f9;
+    }
+
+    :root[data-theme="light"] .grain {
+      opacity: 0.02;
+    }
+
+    body {
+      transition: background-color 240ms linear, color 240ms linear;
+    }
+
+    .side-top-right {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .theme-toggle {
+      width: 32px;
+      height: 32px;
+      display: grid;
+      place-items: center;
+      padding: 0;
+      border: 1px solid var(--line-hi);
+      background: transparent;
+      color: var(--ink-2);
+      font-size: 15px;
+      line-height: 1;
+      cursor: pointer;
+      transition: border-color 120ms linear, color 120ms linear;
+    }
+
+    .theme-toggle:hover {
+      border-color: var(--ink);
+      color: var(--ink);
+    }
+
+    .theme-toggle span {
+      display: inline-block;
+      transition: transform 420ms var(--snap);
+    }
+
+    .theme-toggle:active span {
+      transform: rotate(-90deg) scale(0.85);
+    }
+
+    /* ------------------------------------------------------------------
+       2FA dispatch: sandbox SMS banner + delivery card
+       ------------------------------------------------------------------ */
+
+    .sms-banner {
+      margin: 14px 0 16px;
+      padding: 12px 14px;
+      border: 1px solid var(--otp-glow-line);
+      border-left: 4px solid var(--otp-glow);
+      border-radius: 8px;
+      background: var(--sms-surface);
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+    }
+
+    .sms-banner[hidden],
+    .otp-reveal[hidden] {
+      display: none;
+    }
+
+    .sms-banner-head,
+    .sms-banner-foot,
+    .dispatch-head,
+    .dispatch-meta {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .sms-banner-head {
+      margin-bottom: 6px;
+    }
+
+    .sms-banner-label {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-family: var(--mono);
+      font-size: 10px;
+      font-weight: 800;
+      letter-spacing: 0.1em;
+      color: var(--otp-glow);
+    }
+
+    .sms-banner-live,
+    .dispatch-carrier {
+      font-family: var(--mono);
+      font-size: 10px;
+      font-weight: 700;
+      color: var(--safe);
+      white-space: nowrap;
+    }
+
+    .sms-banner-body {
+      margin: 0 0 8px;
+      font-size: 13px;
+      line-height: 1.4;
+      color: var(--ink);
+    }
+
+    .sms-code-inline {
+      padding: 2px 7px;
+      border-radius: 3px;
+      background: var(--otp-glow-soft);
+      color: var(--otp-glow);
+      font-family: var(--mono);
+      font-size: 17px;
+      font-weight: 900;
+      letter-spacing: 0.15em;
+    }
+
+    .sms-banner-foot {
+      padding-top: 8px;
+      border-top: 1px solid var(--line);
+      font-family: var(--mono);
+      font-size: 10px;
+      color: var(--ink-3);
+    }
+
+    .sms-banner-foot strong {
+      color: var(--ink);
+    }
+
+    .sms-autofill {
+      padding: 4px 10px;
+      border: 1px solid var(--otp-glow);
+      border-radius: 3px;
+      background: var(--otp-glow-soft);
+      color: var(--otp-glow);
+      font-family: var(--mono);
+      font-size: 10px;
+      font-weight: 800;
+      cursor: pointer;
+    }
+
+    .dispatch-card {
+      margin: 0 0 20px;
+      padding: 14px 16px;
+      border: 1px solid rgba(255, 90, 0, 0.4);
+      border-radius: 6px;
+      background: var(--dispatch-surface);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+    }
+
+    .dispatch-head {
+      margin-bottom: 10px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid rgba(255, 90, 0, 0.25);
+    }
+
+    .dispatch-badge {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-family: var(--mono);
+      font-size: 10px;
+      font-weight: 800;
+      letter-spacing: 0.1em;
+      color: var(--accent);
+    }
+
+    .dispatch-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--safe);
+    }
+
+    .dispatch-card[data-state="pending"] .dispatch-dot {
+      background: var(--warn);
+    }
+
+    .dispatch-meta {
+      align-items: baseline;
+      margin-bottom: 12px;
+      font-size: 12px;
+      color: var(--ink-2);
+    }
+
+    .dispatch-meta strong {
+      color: var(--ink);
+      font-family: var(--mono);
+    }
+
+    .dispatch-meta span:last-child {
+      font-family: var(--mono);
+      font-size: 10px;
+      color: var(--ink-3);
+    }
+
+    .otp-reveal {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      padding: 14px 16px;
+      border: 1px dashed rgba(255, 90, 0, 0.6);
+      border-radius: 6px;
+      background: var(--reveal-surface);
+    }
+
+    .otp-reveal-label {
+      margin-bottom: 4px;
+      font-family: var(--mono);
+      font-size: 10px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--ink-3);
+    }
+
+    .otp-reveal-code {
+      font-family: var(--mono);
+      font-size: 32px;
+      font-weight: 900;
+      line-height: 1;
+      letter-spacing: 0.28em;
+      color: var(--otp-glow);
+      text-shadow: var(--otp-shadow);
+    }
+
+    .otp-autofill {
+      height: 42px;
+      padding: 0 18px;
+      border-radius: 4px;
+      font-size: 12px;
+      font-weight: 900;
+      letter-spacing: 0.06em;
+      white-space: nowrap;
+    }
+
+    .dispatch-note {
+      margin: 10px 0 0;
+      padding-top: 8px;
+      border-top: 1px solid var(--line);
+      font-size: 11px;
+      line-height: 1.4;
+      color: var(--ink-3);
+    }
+
+    .dispatch-note strong {
+      color: var(--ink-2);
+    }
+
+    .resend-link[aria-disabled="true"] {
+      color: var(--ink-4);
+      pointer-events: none;
+    }
+
+    @media (max-width: 420px) {
+      .otp-reveal {
+        flex-direction: column;
+        align-items: stretch;
+      }
+
+      .otp-reveal-code {
+        font-size: 26px;
+      }
+    }
+
     @media (max-width: 960px) {
       .auth {
         grid-template-columns: 1fr;
@@ -662,7 +949,10 @@
           <span class="wordmark-glyph" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="square"><path d="M12 21s7-3.5 7-9V5l-7-2.5L5 5v7c0 5.5 7 9 7 9z"/><path d="M9 12l2 2 4-4"/></svg></span>
           <span>SENTINEL<span class="wordmark-slash">/</span>AI</span>
         </a>
-        <a href="/" class="side-back"><span>&larr;</span> Back to site</a>
+        <div class="side-top-right">
+          <a href="/" class="side-back"><span>&larr;</span> Back to site</a>
+          <button type="button" id="theme-toggle" class="theme-toggle" aria-label="Switch to light theme" title="Switch to light theme"><span aria-hidden="true">☀️</span></button>
+        </div>
       </div>
 
       <div class="side-main">
@@ -811,53 +1101,46 @@
             <p id="twofa-instruction">We dispatched a 6-digit verification code to your verified channel.</p>
           </div>
 
-          <!-- Incoming Carrier SMS Simulation Notification Banner -->
-          <div id="sms-push-banner" style="background: linear-gradient(135deg, rgba(20, 24, 33, 0.98), rgba(12, 14, 18, 0.98)); border: 1px solid rgba(0, 240, 255, 0.35); border-left: 4px solid #00f0ff; border-radius: 8px; padding: 12px 14px; margin: 14px 0 16px 0; box-shadow: 0 10px 30px rgba(0,0,0,0.6);">
-            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
-              <div style="display: flex; align-items: center; gap: 8px; font-family: var(--mono); font-size: 10px; color: #00f0ff; letter-spacing: 0.1em; font-weight: 800;">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#00f0ff" stroke-width="2.5"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+          <!-- Sandbox only: simulated incoming SMS, shown when no carrier gateway delivered the code -->
+          <div id="sms-push-banner" class="sms-banner" hidden>
+            <div class="sms-banner-head">
+              <span class="sms-banner-label">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
                 SIMULATED CARRIER SMS &bull; INCOMING NOW
-              </div>
-              <span style="font-family: var(--mono); font-size: 10px; color: #10b981; font-weight: 700;">● Active</span>
+              </span>
+              <span class="sms-banner-live">● Active</span>
             </div>
-            <div style="font-size: 13px; color: var(--ink); line-height: 1.4; margin-bottom: 8px;">
-              <strong>SentinelAI Security:</strong> Your 6-digit verification code is <span id="banner-otp-code" style="color: #00f0ff; font-family: var(--mono); font-weight: 900; font-size: 17px; background: rgba(0,240,255,0.12); padding: 2px 7px; border-radius: 3px; letter-spacing: 0.15em;">772910</span>. Valid for 5 minutes.
-            </div>
-            <div style="display: flex; align-items: center; justify-content: space-between; border-top: 1px solid rgba(255,255,255,0.06); padding-top: 8px; font-size: 11px;">
-              <span style="color: var(--ink-3); font-family: var(--mono); font-size: 10px;">Recipient: <strong id="banner-otp-phone" style="color: var(--ink);">+917567041309</strong></span>
-              <button type="button" onclick="fillAuto2FACode()" style="background: rgba(0,240,255,0.15); border: 1px solid #00f0ff; color: #00f0ff; font-family: var(--mono); font-size: 10px; font-weight: 800; padding: 4px 10px; border-radius: 3px; cursor: pointer;">
-                ⚡ 1-CLICK AUTOFILL
-              </button>
+            <p class="sms-banner-body">
+              <strong>SentinelAI Security:</strong> Your 6-digit verification code is <span id="banner-otp-code" class="sms-code-inline">------</span>. Valid for 5 minutes.
+            </p>
+            <div class="sms-banner-foot">
+              <span>Recipient: <strong id="banner-otp-phone">—</strong></span>
+              <button type="button" class="sms-autofill" onclick="fillAuto2FACode()">⚡ 1-CLICK AUTOFILL</button>
             </div>
           </div>
 
-          <!-- Prominent Carrier SMS / Email OTP Delivery Card -->
-          <div id="otp-dispatch-card" style="margin: 0 0 20px 0; border: 1px solid rgba(255, 90, 0, 0.4); background: linear-gradient(180deg, rgba(255,90,0,0.08) 0%, rgba(14,16,20,0.98) 100%); border-radius: 6px; padding: 14px 16px; box-shadow: 0 8px 24px rgba(0,0,0,0.5);">
-            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,90,0,0.25); padding-bottom: 8px; margin-bottom: 10px;">
-              <span id="dispatch-badge" style="font-family: var(--mono); font-size: 10px; color: var(--accent); font-weight: 800; letter-spacing: 0.1em; display: flex; align-items: center; gap: 6px;">
-                <span style="width: 7px; height: 7px; background: #10b981; border-radius: 50%; display: inline-block;"></span>
-                CARRIER SMS DISPATCHED
-              </span>
-              <span style="font-family: var(--mono); font-size: 10px; color: #10b981;">● Code Generated</span>
+          <!-- Carrier SMS / Email OTP delivery receipt -->
+          <div id="otp-dispatch-card" class="dispatch-card">
+            <div class="dispatch-head">
+              <span id="dispatch-badge" class="dispatch-badge"><i class="dispatch-dot"></i> <span>CARRIER SMS DISPATCHED</span></span>
+              <span id="dispatch-carrier" class="dispatch-carrier">● Code Generated</span>
             </div>
-            <div style="display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 12px;">
-              <span style="font-size: 12px; color: var(--ink-2);">Destination: <strong id="dispatch-target" style="color: var(--ink); font-family: var(--mono);">+917567041309</strong></span>
-              <span style="font-size: 10px; color: var(--ink-3); font-family: var(--mono);">Expires in 5m</span>
+            <div class="dispatch-meta">
+              <span>Destination: <strong id="dispatch-target">—</strong></span>
+              <span>Expires in 5m</span>
             </div>
-            
-            <div style="background: rgba(0,0,0,0.7); border: 1px dashed rgba(255,90,0,0.6); border-radius: 6px; padding: 14px 16px; display: flex; align-items: center; justify-content: space-between; gap: 14px;">
+
+            <div id="otp-reveal" class="otp-reveal">
               <div>
-                <div style="font-size: 10px; font-family: var(--mono); color: var(--ink-3); text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 4px;">YOUR 6-DIGIT OTP VERIFICATION CODE</div>
-                <div id="active-otp-display" style="font-family: var(--mono); font-size: 32px; font-weight: 900; color: #00f0ff; letter-spacing: 0.28em; line-height: 1; text-shadow: 0 0 16px rgba(0, 240, 255, 0.4);">772910</div>
+                <div class="otp-reveal-label">YOUR 6-DIGIT OTP VERIFICATION CODE</div>
+                <div id="active-otp-display" class="otp-reveal-code" aria-live="polite">------</div>
               </div>
-              <button type="button" class="btn btn-primary" onclick="fillAuto2FACode()" style="height: 42px; padding: 0 18px; font-size: 12px; background: var(--accent); color: #000; font-weight: 900; letter-spacing: 0.06em; border-radius: 4px; cursor: pointer; display: flex; align-items: center; gap: 6px;">
+              <button type="button" class="btn btn-primary otp-autofill" onclick="fillAuto2FACode()">
                 <span>⚡ AUTOFILL</span>
               </button>
             </div>
 
-            <div style="margin-top: 10px; font-size: 11px; color: var(--ink-3); line-height: 1.4; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 8px;">
-              <strong style="color: var(--ink-2);">Why didn't SMS reach your physical phone?</strong> Telecom carriers (+91) require a dedicated SMS Gateway API (Fast2SMS / Twilio). Because no gateway API key is configured yet, your authentic OTP code is safely displayed right here for instant access!
-            </div>
+            <p id="dispatch-note" class="dispatch-note"></p>
           </div>
 
           <form id="form-2fa" onsubmit="handle2FASubmit(event)">
@@ -885,7 +1168,7 @@
 
           <div class="twofa-links" style="margin-top: 16px;">
             <a href="#" onclick="event.preventDefault(); backToCredentials()">&larr; Back</a>
-            <a href="#" onclick="event.preventDefault(); resendCode()">🔄 Resend new OTP code</a>
+            <a href="#" id="resend-link" class="resend-link" onclick="event.preventDefault(); resendCode()">🔄 <span id="resend-label">Resend new OTP code</span></a>
           </div>
         </section>
 
@@ -1147,8 +1430,8 @@
 
         if (data.require_2fa) {
           pendingTempToken = data.temp_token;
-          active2FACode = data.dev_code_hint || data.dispatch?.code || "123456";
-          renderDispatchInfo(data.dispatch || { channel: phone ? 'sms' : 'email', recipient: phone || email, code: active2FACode });
+          active2FACode = data.dev_code_hint || data.dispatch?.code || "";
+          renderDispatchInfo({ channel: phone ? 'sms' : 'email', recipient: phone || email, ...(data.dispatch || {}), code: active2FACode });
           show2FAScreen();
           showAlert("Account created. 6-digit OTP code dispatched via " + (data.dispatch?.channel || 'secure channel').toUpperCase(), false);
         } else {
@@ -1168,47 +1451,152 @@
       }
     }
 
-    function renderDispatchInfo(dispatch) {
-      const card = document.getElementById('otp-dispatch-card');
-      const badge = document.getElementById('dispatch-badge');
-      const target = document.getElementById('dispatch-target');
-      const display = document.getElementById('active-otp-display');
-      const hint = document.getElementById('active-2fa-code');
-      const instruction = document.getElementById('twofa-instruction');
-      const bannerCode = document.getElementById('banner-otp-code');
-      const bannerPhone = document.getElementById('banner-otp-phone');
+    const RESEND_COOLDOWN_S = 30;
+    let resendTimer = null;
+    let resendReadyAt = 0;
 
-      const chan = (dispatch.channel || 'SMS').toUpperCase();
-      const recipient = dispatch.recipient || "+917567041309";
-      const code = dispatch.code || active2FACode || "772910";
+    function sandboxCode() {
+      // Standalone/static hosting only (no backend to dispatch from).
+      const buf = new Uint32Array(1);
+      crypto.getRandomValues(buf);
+      return String(100000 + (buf[0] % 900000));
+    }
+
+    function renderDispatchInfo(dispatch) {
+      const chan = (dispatch.channel || 'sms').toUpperCase();
+      const recipient = dispatch.recipient || '—';
+      // Older/offline responses carry no flag; those are always sandbox codes.
+      const simulated = dispatch.simulated !== false;
+      const code = simulated ? (dispatch.code || active2FACode || '') : '';
+      const carrier = dispatch.carrier || (simulated ? 'Simulated Gateway' : 'Carrier');
+      const pending = dispatch.status === 'gateway_pending';
       active2FACode = code;
 
-      if (badge) badge.innerHTML = `<span style="width: 7px; height: 7px; background: #10b981; border-radius: 50%; display: inline-block;"></span> CARRIER ${chan} DISPATCHED`;
+      const card = document.getElementById('otp-dispatch-card');
+      if (card) {
+        card.style.display = 'block';
+        card.dataset.state = pending ? 'pending' : 'ok';
+      }
+      const badge = document.querySelector('#dispatch-badge span');
+      if (badge) {
+        badge.textContent = simulated
+          ? (chan === 'SMS' ? 'SANDBOX SMS DISPATCH' : 'SANDBOX EMAIL DISPATCH')
+          : `CARRIER ${chan} DELIVERED`;
+      }
+      const carrierEl = document.getElementById('dispatch-carrier');
+      if (carrierEl) carrierEl.textContent = pending ? `● ${carrier} unavailable` : `● via ${carrier}`;
+      const target = document.getElementById('dispatch-target');
       if (target) target.textContent = recipient;
-      if (display) display.textContent = code;
-      if (hint) hint.textContent = code;
-      if (bannerCode) bannerCode.textContent = code;
+
+      ['active-otp-display', 'active-2fa-code', 'banner-otp-code'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.textContent = code || '------';
+      });
+      const bannerPhone = document.getElementById('banner-otp-phone');
       if (bannerPhone) bannerPhone.textContent = recipient;
-      if (card) card.style.display = 'block';
+
+      // Only reveal the code on screen when nothing physically delivered it.
+      const banner = document.getElementById('sms-push-banner');
+      if (banner) banner.hidden = !(simulated && chan === 'SMS');
+      const reveal = document.getElementById('otp-reveal');
+      if (reveal) reveal.hidden = !simulated;
+      const pill = document.getElementById('demo-2fa-pill-wrap');
+      if (pill) pill.style.display = simulated ? '' : 'none';
+
+      const note = document.getElementById('dispatch-note');
+      if (note) {
+        if (!simulated) {
+          note.innerHTML = `<strong>Check your phone.</strong> ${escapeText(carrier)} accepted the SMS for ${escapeText(recipient)}. Delivery usually takes a few seconds.`;
+        } else if (pending) {
+          note.innerHTML = `<strong>The ${escapeText(carrier)} gateway didn't accept this message.</strong> Showing a sandbox code so you can still sign in. Check the gateway key and DLT/sender setup on the server.`;
+        } else if (chan === 'SMS') {
+          note.innerHTML = '<strong>Why didn\'t SMS reach your physical phone?</strong> No SMS gateway is configured on the server. Set <code>FAST2SMS_API_KEY</code> (+91) or <code>TWILIO_ACCOUNT_SID</code> / <code>TWILIO_AUTH_TOKEN</code> for real carrier delivery. Until then the code is shown here.';
+        } else {
+          note.innerHTML = '<strong>Sandbox email dispatch.</strong> No mail transport is configured, so the code is shown here. Add a phone number to your account for carrier SMS.';
+        }
+      }
+
+      const instruction = document.getElementById('twofa-instruction');
       if (instruction) {
-        instruction.textContent = "We dispatched a genuine 6-digit verification code to your " + chan + ": " + recipient + ".";
+        instruction.textContent = simulated
+          ? `Sandbox mode: your 6-digit ${chan} code for ${recipient} is shown below.`
+          : `We sent a 6-digit verification code by ${chan} to ${recipient}.`;
       }
     }
 
-    function resendCode() {
-      const freshCode = String(Math.floor(100000 + Math.random() * 900000));
-      active2FACode = freshCode;
-      const display = document.getElementById('active-otp-display');
-      if (display) display.textContent = freshCode;
-      const hint = document.getElementById('active-2fa-code');
-      if (hint) hint.textContent = freshCode;
-      const bannerCode = document.getElementById('banner-otp-code');
-      if (bannerCode) bannerCode.textContent = freshCode;
+    function escapeText(value) {
+      const div = document.createElement('div');
+      div.textContent = String(value ?? '');
+      return div.innerHTML;
+    }
 
+    function startResendCooldown(seconds) {
+      resendReadyAt = Date.now() + seconds * 1000;
+      const link = document.getElementById('resend-link');
+      const label = document.getElementById('resend-label');
+      clearInterval(resendTimer);
+      const tick = () => {
+        const left = Math.ceil((resendReadyAt - Date.now()) / 1000);
+        if (left <= 0) {
+          clearInterval(resendTimer);
+          if (link) link.removeAttribute('aria-disabled');
+          if (label) label.textContent = 'Resend new OTP code';
+          return;
+        }
+        if (link) link.setAttribute('aria-disabled', 'true');
+        if (label) label.textContent = `Resend new OTP code (${left}s)`;
+      };
+      tick();
+      resendTimer = setInterval(tick, 1000);
+    }
+
+    function applyFreshDispatch(dispatch, message) {
+      renderDispatchInfo(dispatch);
       otpBoxes().forEach(b => { b.value = ''; b.classList.remove('filled'); });
-      showAlert("Fresh 6-digit OTP issued: " + freshCode, false);
+      if (canAnimate) {
+        gsap.fromTo('#otp-dispatch-card, #sms-push-banner:not([hidden])',
+          { y: 8, opacity: 0.4 }, { y: 0, opacity: 1, duration: 0.45, ease: 'expo.out', stagger: 0.05 });
+      }
+      showAlert(message, false);
+      startResendCooldown(RESEND_COOLDOWN_S);
       const firstInput = document.querySelector('.otp-box');
       if (firstInput) firstInput.focus();
+    }
+
+    async function resendCode() {
+      if (Date.now() < resendReadyAt) return;
+      clearAlert();
+      const recipient = document.getElementById('dispatch-target')?.textContent || '';
+      const offlineSession = !pendingTempToken || pendingTempToken.startsWith('mock_temp_');
+
+      if (!offlineSession) {
+        try {
+          const res = await fetch('/api/auth/2fa/resend', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ temp_token: pendingTempToken })
+          });
+          const data = await res.json().catch(() => ({}));
+          if (res.status === 429) {
+            startResendCooldown(Number(res.headers.get('Retry-After')) || RESEND_COOLDOWN_S);
+            showAlert(data.detail || 'Please wait before requesting another code.');
+            return;
+          }
+          if (!res.ok) {
+            showAlert(data.detail || 'Could not resend the code. Please sign in again.');
+            return;
+          }
+          applyFreshDispatch({ ...data.dispatch, code: data.dev_code_hint || data.dispatch?.code }, data.message || 'New 6-digit code dispatched.');
+          return;
+        } catch (err) {
+          showAlert('Network error while resending. Check your connection and try again.');
+          return;
+        }
+      }
+
+      // Static host without the API: rotate the sandbox code locally.
+      const freshCode = sandboxCode();
+      applyFreshDispatch({ channel: 'sms', recipient, code: freshCode, simulated: true }, 'Fresh 6-digit sandbox OTP issued.');
     }
 
     // --- Login Form Submission ---
@@ -1235,8 +1623,8 @@
 
         if (data.require_2fa) {
           pendingTempToken = data.temp_token;
-          active2FACode = data.dev_code_hint || data.dispatch?.code || "123456";
-          renderDispatchInfo(data.dispatch || { channel: 'email', recipient: email, code: active2FACode });
+          active2FACode = data.dev_code_hint || data.dispatch?.code || "";
+          renderDispatchInfo({ channel: 'email', recipient: email, ...(data.dispatch || {}), code: active2FACode });
           show2FAScreen();
           showAlert("Authentication code dispatched to " + (data.dispatch?.recipient || email), false);
         } else {
@@ -1261,6 +1649,7 @@
       document.getElementById('credentials-view').style.display = 'none';
       const view = document.getElementById('two-fa-view');
       view.style.display = 'block';
+      startResendCooldown(RESEND_COOLDOWN_S);
       if (canAnimate) {
         gsap.from(view.querySelectorAll('.card-head > *, #sms-push-banner, #otp-dispatch-card, .otp-box, #demo-2fa-pill-wrap, #btn-verify-2fa, .twofa-links'),
           { y: 10, duration: 0.4, ease: 'expo.out', stagger: 0.02 });
@@ -1317,7 +1706,11 @@
 
     function fillAuto2FACode() {
       const inputs = otpBoxes();
-      const code = active2FACode || document.getElementById('active-otp-display')?.textContent || "772910";
+      const code = active2FACode;
+      if (!/^\d{6}$/.test(code || '')) {
+        showAlert("Enter the code from the SMS on your phone.");
+        return;
+      }
       for (let i = 0; i < inputs.length; i++) {
         inputs[i].value = code[i] || '';
       }
@@ -1406,6 +1799,28 @@
         }
       } catch (e) {}
     }
+
+    // --- Theme toggle (shares sentinel_theme with the dashboard) ---
+    function syncAuthTheme() {
+      const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+      const btn = document.getElementById('theme-toggle');
+      if (btn) {
+        btn.querySelector('span').textContent = isLight ? '🌙' : '☀️';
+        const label = isLight ? 'Switch to dark theme' : 'Switch to light theme';
+        btn.setAttribute('aria-label', label);
+        btn.title = label;
+      }
+      const meta = document.querySelector('meta[name="theme-color"]');
+      if (meta) meta.setAttribute('content', isLight ? '#f8f9fa' : '#08090a');
+    }
+
+    document.getElementById('theme-toggle').addEventListener('click', () => {
+      const next = document.documentElement.getAttribute('data-theme') === 'light' ? 'dark' : 'light';
+      document.documentElement.setAttribute('data-theme', next);
+      try { localStorage.setItem('sentinel_theme', next); } catch (e) {}
+      syncAuthTheme();
+    });
+    syncAuthTheme();
 
     // --- Query Parameter Routing ---
     window.addEventListener('DOMContentLoaded', () => {

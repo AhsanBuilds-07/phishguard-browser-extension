@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#08090a">
   <title>SentinelAI · Security Command Center</title>
+  <script src="../assets/js/theme-init.js"></script>
   <link rel="stylesheet" href="dashboard.css">
 </head>
 <body>
@@ -21,25 +22,25 @@
         <span><strong>Sentinel<span>AI</span></strong><small>THREAT OPERATIONS</small></span>
       </a>
 
-      <div class="workspace-label">DETECTION & MONITORING</div>
+      <div class="workspace-label" data-i18n="section.detection">DETECTION & MONITORING</div>
       <nav class="primary-nav" aria-label="Main navigation">
-        <button class="nav-link active" data-view="overview"><span class="nav-icon">◈</span>Overview</button>
-        <button class="nav-link" data-view="monitor"><span class="nav-icon">⌁</span>Live Browser Monitor<span id="monitor-count" class="nav-count">—</span></button>
-        <button class="nav-link" data-view="investigate"><span class="nav-icon">✳</span>AI Threat Investigation</button>
-        <button class="nav-link" data-view="analyzer"><span class="nav-icon">⌕</span>URL & Domain Analyzer</button>
-        <button class="nav-link" data-view="intel"><span class="nav-icon">⚡</span>Threat Intelligence</button>
+        <button class="nav-link active" data-view="overview"><span class="nav-icon">◈</span><span data-i18n="nav.overview">Overview</span></button>
+        <button class="nav-link" data-view="monitor"><span class="nav-icon">⌁</span><span data-i18n="nav.monitor">Live Browser Monitor</span><span id="monitor-count" class="nav-count">—</span></button>
+        <button class="nav-link" data-view="investigate"><span class="nav-icon">✳</span><span data-i18n="nav.investigate">AI Threat Investigation</span></button>
+        <button class="nav-link" data-view="analyzer"><span class="nav-icon">⌕</span><span data-i18n="nav.analyzer">URL & Domain Analyzer</span></button>
+        <button class="nav-link" data-view="intel"><span class="nav-icon">⚡</span><span data-i18n="nav.intel">Threat Intelligence</span></button>
 
         <div class="nav-divider"></div>
-        <div class="workspace-label">MODEL STUDIO</div>
-        <button class="nav-link" data-view="datasets"><span class="nav-icon">▤</span>Dataset Explorer</button>
-        <button class="nav-link" data-view="training"><span class="nav-icon">⌘</span>ML Training Lab</button>
-        <button class="nav-link" data-view="registry"><span class="nav-icon">◫</span>Model Registry</button>
+        <div class="workspace-label" data-i18n="section.studio">MODEL STUDIO</div>
+        <button class="nav-link" data-view="datasets"><span class="nav-icon">▤</span><span data-i18n="nav.datasets">Dataset Explorer</span></button>
+        <button class="nav-link" data-view="training"><span class="nav-icon">⌘</span><span data-i18n="nav.training">ML Training Lab</span></button>
+        <button class="nav-link" data-view="registry"><span class="nav-icon">◫</span><span data-i18n="nav.registry">Model Registry</span></button>
 
         <div class="nav-divider"></div>
-        <div class="workspace-label">GOVERNANCE</div>
-        <button class="nav-link" data-view="history"><span class="nav-icon">◷</span>Scan History</button>
-        <button class="nav-link" data-view="privacy"><span class="nav-icon">🛡</span>Privacy Center</button>
-        <button class="nav-link" data-view="settings"><span class="nav-icon">⚙</span>Settings</button>
+        <div class="workspace-label" data-i18n="section.governance">GOVERNANCE</div>
+        <button class="nav-link" data-view="history"><span class="nav-icon">◷</span><span data-i18n="nav.history">Scan History</span></button>
+        <button class="nav-link" data-view="privacy"><span class="nav-icon">🛡</span><span data-i18n="nav.privacy">Privacy Center</span></button>
+        <button class="nav-link" data-view="settings"><span class="nav-icon">⚙</span><span data-i18n="nav.settings">Settings</span></button>
       </nav>
 
       <div class="sidebar-bottom">
@@ -48,7 +49,7 @@
           <div><strong>100% Local Intelligence</strong><small>On-device V8 & Python models.</small></div>
           <i class="status-orb"></i>
         </div>
-        <div class="user-chip" id="operator-user-chip" style="cursor:pointer;" onclick="handleUserChipClick()">
+        <div class="user-chip" id="operator-user-chip" style="cursor:pointer;" role="button" tabindex="0" aria-controls="profile-drawer">
           <span class="avatar" id="operator-avatar">SA</span>
           <div style="flex:1; overflow:hidden;">
             <strong id="operator-name" style="display:block; white-space:nowrap; text-overflow:ellipsis; overflow:hidden;">Operator Active</strong>
@@ -74,7 +75,25 @@
           </div>
           <span class="topbar-divider"></span>
           <time id="today-label"></time>
-          <button class="avatar avatar-small" title="SentinelAI Console">SA</button>
+          <button id="theme-toggle" class="theme-toggle" type="button" aria-label="Switch to light theme" data-i18n-aria="theme.toLight">
+            <span class="theme-icon" aria-hidden="true">☀️</span>
+          </button>
+          <label class="lang-select" title="Language">
+            <span class="lang-globe" aria-hidden="true">🌐</span>
+            <select id="lang-select" aria-label="Language">
+              <option value="en">English</option>
+              <option value="hi">हिंदी</option>
+              <option value="gu">ગુજરાતી</option>
+              <option value="es">Español</option>
+            </select>
+          </label>
+          <button id="profile-badge" class="profile-badge" type="button" aria-haspopup="dialog" aria-expanded="false" aria-controls="profile-drawer">
+            <span class="avatar" id="profile-badge-avatar">SA</span>
+            <span class="profile-badge-text">
+              <strong id="profile-badge-name">Guest Operator</strong>
+              <small id="profile-badge-status" class="is-guest"><i class="status-orb"></i><span data-i18n="status.guest">Guest — not signed in</span></small>
+            </span>
+          </button>
         </div>
       </header>
 
@@ -89,7 +108,7 @@
               <h1>Threat overview<span class="heading-dot">.</span></h1>
               <p class="page-subtitle">Real-time status of on-device phishing protection, model health, and active detections.</p>
             </div>
-            <button class="button button-quiet" data-go="investigate"><span>＋</span> New Investigation</button>
+            <button class="button button-quiet" data-go="investigate"><span>＋</span> <span data-i18n="action.newInvestigation">New Investigation</span></button>
           </div>
 
           <div class="hero-panel">
@@ -101,8 +120,8 @@
               <h2>Defend every click.<br><span>Explain every threat.</span></h2>
               <p>On-device Random Forest inference, brand impersonation analysis, and homograph detection protecting user navigation without cloud telemetry.</p>
               <div class="hero-cta-group">
-                <button class="button button-primary" data-go="investigate">Investigate URL <span>↗</span></button>
-                <button class="button button-secondary" data-go="monitor">View Live Monitor</button>
+                <button class="button button-primary" data-go="investigate"><span data-i18n="action.investigateUrl">Investigate URL</span> <span>↗</span></button>
+                <button class="button button-secondary" data-go="monitor" data-i18n="action.viewMonitor">View Live Monitor</button>
               </div>
             </div>
             <div class="hero-orbit">
@@ -156,8 +175,8 @@
               </div>
               <div class="chart-wrap"><canvas id="activity-chart" aria-label="Investigation activity chart"></canvas></div>
               <div class="chart-legend">
-                <span><i class="legend-dot green-dot"></i>Safe</span>
-                <span><i class="legend-dot amber-dot"></i>Suspicious</span>
+                <span><i class="legend-dot green-dot"></i><span data-i18n="verdict.safe">Safe</span></span>
+                <span><i class="legend-dot amber-dot"></i><span data-i18n="verdict.suspicious">Suspicious</span></span>
                 <span><i class="legend-dot red-dot"></i>Malicious</span>
                 <span><i class="legend-dot slate-dot"></i>Unknown</span>
               </div>
@@ -166,7 +185,7 @@
             <article class="panel signal-panel">
               <div class="panel-heading">
                 <div><p class="eyebrow">REAL-TIME THREAT LOG</p><h3>Recent Detections</h3></div>
-                <button class="text-button" data-go="history">All History <span>→</span></button>
+                <button class="text-button" data-go="history"><span data-i18n="action.allHistory">All History</span> <span>→</span></button>
               </div>
               <div id="overview-recent" class="recent-list">
                 <div class="empty-state compact">Navigate in your browser to populate live threat detections.</div>
@@ -238,7 +257,7 @@
                     <span class="input-prefix">↗</span>
                     <input id="investigate-url" name="url" type="url" placeholder="http://security-paypal-login-verify.xyz/signin.htm" autocomplete="url" required maxlength="4096">
                     <button class="button button-primary" type="submit">
-                      <span class="scan-label">Run Investigation</span>
+                      <span class="scan-label" data-i18n="action.runInvestigation">Run Investigation</span>
                       <span class="button-arrow">→</span>
                     </button>
                   </div>
@@ -289,7 +308,7 @@
                 <div class="url-input-wrap">
                   <span class="input-prefix">⌕</span>
                   <input id="analyzer-url" type="text" placeholder="https://www.paypal.com.account-update.xyz/login.php?user=123" required>
-                  <button class="button button-primary" type="submit">Analyze Structure</button>
+                  <button class="button button-primary" type="submit" data-i18n="action.analyze">Analyze Structure</button>
                 </div>
               </form>
             </article>
@@ -710,10 +729,22 @@
               </div>
               <div class="setting-row">
                 <div>
-                  <strong>Light Theme</strong>
-                  <p>Toggle between dark operations console and light workspace.</p>
+                  <strong data-i18n="settings.theme">Light Theme</strong>
+                  <p data-i18n="settings.themeDesc">Toggle between dark operations console and light workspace.</p>
                 </div>
                 <button id="settings-theme-toggle" class="switch" role="switch" aria-checked="false" aria-label="Toggle theme"><span></span></button>
+              </div>
+              <div class="setting-row">
+                <div>
+                  <strong data-i18n="settings.language">Interface Language</strong>
+                  <p data-i18n="settings.languageDesc">Translate navigation, actions, and status badges instantly.</p>
+                </div>
+                <select id="settings-lang-select" class="key-input" aria-label="Language" style="width:auto;">
+                  <option value="en">English</option>
+                  <option value="hi">हिंदी (Hindi)</option>
+                  <option value="gu">ગુજરાતી (Gujarati)</option>
+                  <option value="es">Español</option>
+                </select>
               </div>
             </article>
           </div>
@@ -726,6 +757,71 @@
       </footer>
     </main>
   </div>
+
+  <!-- User profile drawer -->
+  <div id="drawer-scrim" class="drawer-scrim" aria-hidden="true"></div>
+  <aside id="profile-drawer" class="profile-drawer" role="dialog" aria-modal="true" aria-labelledby="profile-drawer-title" aria-hidden="true">
+    <div class="drawer-head">
+      <p class="eyebrow" id="profile-drawer-title" data-i18n="profile.title">User Profile</p>
+      <button id="profile-close" class="drawer-close" type="button" aria-label="Close profile" data-i18n-aria="profile.close">✕</button>
+    </div>
+    <div class="drawer-body">
+      <div class="drawer-identity">
+        <span class="avatar" id="profile-avatar">SA</span>
+        <div>
+          <h2 id="profile-name">Guest Operator</h2>
+          <span class="role-badge" id="profile-role" data-role="guest">GUEST</span>
+        </div>
+      </div>
+
+      <section class="drawer-section">
+        <p class="eyebrow" data-i18n="profile.account">Account Details</p>
+        <div class="drawer-row"><span data-i18n="profile.fullName">Full Name</span><strong id="profile-fullname">—</strong></div>
+        <div class="drawer-row"><span data-i18n="profile.role">Role</span><strong id="profile-role-text">—</strong></div>
+        <div class="drawer-row"><span data-i18n="profile.joined">Joined</span><strong id="profile-joined">—</strong></div>
+      </section>
+
+      <section class="drawer-section">
+        <p class="eyebrow" data-i18n="profile.channels">Verified Channels</p>
+        <div class="drawer-row"><span data-i18n="profile.email">Email</span><strong id="profile-email">—</strong></div>
+        <div class="drawer-row"><span data-i18n="profile.phone">Mobile</span><strong id="profile-phone">—</strong></div>
+      </section>
+
+      <section class="drawer-section">
+        <p class="eyebrow" data-i18n="profile.quota">Token &amp; Scan Quota</p>
+        <div class="quota-head">
+          <strong id="profile-quota-label">—</strong>
+          <small id="profile-quota-tier">—</small>
+        </div>
+        <div class="quota-track" id="profile-quota-track"><span id="profile-quota-fill"></span></div>
+        <p class="quota-note" id="profile-quota-note"></p>
+      </section>
+
+      <section class="drawer-section">
+        <p class="eyebrow" data-i18n="profile.security">Security Health</p>
+        <div class="security-row">
+          <p class="security-status" id="profile-2fa-status"><b>●</b> <span></span></p>
+          <button id="profile-2fa-toggle" class="switch" role="switch" aria-checked="false" aria-label="Two-factor authentication"><span></span></button>
+        </div>
+        <form class="twofa-confirm" id="profile-2fa-confirm">
+          <input id="profile-2fa-password" class="key-input" type="password" autocomplete="current-password" placeholder="Confirm password to disable" data-i18n-placeholder="profile.confirmPassword">
+          <button class="button button-small button-quiet" type="submit" data-i18n="action.confirm">Confirm</button>
+        </form>
+      </section>
+
+      <section class="drawer-section">
+        <p class="eyebrow" data-i18n="profile.session">Active Session Key</p>
+        <div class="session-key">
+          <code id="profile-session-key">—</code>
+          <button id="profile-copy-token" type="button" data-i18n="action.copyToken">Copy Token</button>
+        </div>
+      </section>
+    </div>
+    <div class="drawer-actions">
+      <button id="profile-view-history" class="button button-quiet" type="button" data-i18n="action.viewHistory">View My Scan History</button>
+      <button id="profile-signout" class="button button-signout" type="button" data-i18n="action.signOut">Sign Out</button>
+    </div>
+  </aside>
 
   <!-- Dependencies loaded for standalone client execution -->
   <script src="../ml/features.js"></script>

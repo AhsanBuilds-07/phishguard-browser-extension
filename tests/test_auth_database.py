@@ -349,5 +349,96 @@ class AuthAndDatabaseTests(unittest.TestCase):
         for secret in ("password_hash", "password_salt", "two_factor_secret"):
             self.assertNotIn(secret, mine["user"])
 
+    def _register_with_2fa(self, phone=None):
+        import uuid
+        body = {
+            "name": "Resend Operator",
+            "email": f"resend_{uuid.uuid4().hex[:8]}@sentinelai.security",
+            "password": "StrongPassword#2026!",
+            "two_factor_enabled": True,
+        }
+        if phone:
+            body["phone"] = phone
+        res = self.client.post("/api/auth/register", json=body)
+        self.assertEqual(res.status_code, 200)
+        return res.json()
+
+    def test_2fa_resend_rotates_code_logs_dispatch_and_enforces_cooldown(self):
+        from unittest import mock
+        reg = self._register_with_2fa(phone="+917567041309")
+        self.assertNotIn("totp_secret", reg)
+        self.assertTrue(reg["dispatch"]["simulated"])
+        first_code = reg["dev_code_hint"]
+
+        # Immediately resending is throttled so paid SMS gateways cannot be pumped.
+        throttled = self.client.post("/api/auth/2fa/resend", json={"temp_token": reg["temp_token"]})
+        self.assertEqual(throttled.status_code, 429)
+
+        with mock.patch.object(db, "OTP_RESEND_COOLDOWN_SECONDS", 0.0):
+            resent = self.client.post("/api/auth/2fa/resend", json={"temp_token": reg["temp_token"]})
+        self.assertEqual(resent.status_code, 200)
+        new_code = resent.json()["dev_code_hint"]
+        self.assertEqual(len(new_code), 6)
+
+        logged = [d for d in db.get_otp_dispatches(limit=5) if d["code"] == new_code]
+        self.assertEqual(logged[0]["recipient"], "+917567041309")
+        self.assertEqual(logged[0]["channel"], "sms")
+
+        verify = self.client.post(
+            "/api/auth/2fa/verify",
+            json={"temp_token": reg["temp_token"], "code": new_code},
+        )
+        self.assertEqual(verify.status_code, 200, (first_code, new_code))
+
+    def test_2fa_resend_rejects_unknown_challenge(self):
+        res = self.client.post("/api/auth/2fa/resend", json={"temp_token": "not-a-real-token"})
+        self.assertEqual(res.status_code, 400)
+
+    def test_carrier_delivered_code_is_not_echoed_to_client(self):
+        from unittest import mock
+        delivered = {"carrier": "Fast2SMS", "delivered": True, "simulated": False}
+        with mock.patch.object(db, "_send_carrier_sms", return_value=delivered) as sender:
+            reg = self._register_with_2fa(phone="+917567041309")
+        sender.assert_called_once()
+        self.assertEqual(reg["dispatch"]["carrier"], "Fast2SMS")
+        self.assertFalse(reg["dispatch"]["simulated"])
+        self.assertNotIn("code", reg["dispatch"])
+        self.assertNotIn("dev_code_hint", reg)
+
+    def test_sms_routing_prefers_fast2sms_for_indian_numbers(self):
+        from unittest import mock
+        env = {"FAST2SMS_API_KEY": "k", "TWILIO_ACCOUNT_SID": "AC1", "TWILIO_AUTH_TOKEN": "t", "TWILIO_PHONE_NUMBER": "+15550001111"}
+        ok_fast = {"carrier": "Fast2SMS", "delivered": True, "simulated": False}
+        ok_twilio = {"carrier": "Twilio", "delivered": True, "simulated": False}
+        with mock.patch.dict("os.environ", env, clear=False), \
+             mock.patch.object(db, "_send_via_fast2sms", return_value=ok_fast) as fast, \
+             mock.patch.object(db, "_send_via_twilio", return_value=ok_twilio) as twilio:
+            self.assertEqual(db._send_carrier_sms("+917567041309", "123456")["carrier"], "Fast2SMS")
+            fast.assert_called_once_with("k", "7567041309", "123456")
+            self.assertEqual(db._send_carrier_sms("+14155552671", "123456")["carrier"], "Twilio")
+            fast.side_effect = OSError("gateway down")
+            self.assertEqual(db._send_carrier_sms("+917567041309", "123456")["carrier"], "Twilio")
+        with mock.patch.dict("os.environ", {}, clear=True):
+            self.assertTrue(db._send_carrier_sms("+917567041309", "123456")["simulated"])
+
+    def test_2fa_settings_requires_password_to_disable(self):
+        reg = self._register_with_2fa()
+        session = self.client.post(
+            "/api/auth/2fa/verify",
+            json={"temp_token": reg["temp_token"], "code": reg["dev_code_hint"]},
+        ).json()
+        headers = {"Authorization": f"Bearer {session['token']}"}
+        denied = self.client.post("/api/auth/2fa/settings", json={"enabled": False}, headers=headers)
+        self.assertEqual(denied.status_code, 403)
+        ok = self.client.post(
+            "/api/auth/2fa/settings",
+            json={"enabled": False, "password": "StrongPassword#2026!"},
+            headers=headers,
+        )
+        self.assertEqual(ok.status_code, 200)
+        me = self.client.get("/api/auth/me", headers=headers).json()["user"]
+        self.assertFalse(me["two_factor_enabled"])
+        self.assertTrue(me["created_at"])
+
 if __name__ == "__main__":
     unittest.main()

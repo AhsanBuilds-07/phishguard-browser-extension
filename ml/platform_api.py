@@ -80,6 +80,15 @@ class TwoFactorVerifyRequest(BaseModel):
     code: str = Field(min_length=6, max_length=10)
 
 
+class TwoFactorResendRequest(BaseModel):
+    temp_token: str = Field(min_length=5, max_length=128)
+
+
+class TwoFactorSettingsRequest(BaseModel):
+    enabled: bool
+    password: str | None = Field(default=None, max_length=128)
+
+
 class GoogleAuthRequest(BaseModel):
     email: str = Field(min_length=3, max_length=255)
     name: str = Field(min_length=1, max_length=100)
@@ -371,6 +380,37 @@ def history(limit: int = 100) -> dict[str, Any]:
 
 # --- Authentication & User Database Endpoints ---
 
+def _dispatch_payload(dispatch: dict[str, Any], code: str) -> dict[str, Any]:
+    """Client-facing dispatch receipt. The code is only echoed back in sandbox mode,
+    i.e. when no carrier physically delivered it to the user's phone."""
+    simulated = bool(dispatch.get("simulated", True))
+    payload = {
+        "channel": dispatch.get("channel", "email"),
+        "recipient": dispatch.get("recipient"),
+        "status": dispatch.get("status", "delivered"),
+        "carrier": dispatch.get("carrier", "local"),
+        "simulated": simulated,
+    }
+    if simulated:
+        payload["code"] = code
+    return payload
+
+
+def _challenge_response(user: dict[str, Any], message_prefix: str) -> dict[str, Any]:
+    channel = "sms" if user.get("phone") else "email"
+    temp_token, code, dispatch = db.create_2fa_challenge_with_dispatch(user["id"], channel=channel)
+    receipt = _dispatch_payload(dispatch, code)
+    response = {
+        "require_2fa": True,
+        "temp_token": temp_token,
+        "message": f"{message_prefix} 6-digit verification code dispatched via {receipt['channel'].upper()} to {receipt['recipient']}.",
+        "dispatch": receipt,
+    }
+    if receipt["simulated"]:
+        response["dev_code_hint"] = code
+    return response
+
+
 @app.post("/api/auth/register")
 def register(payload: RegisterRequest) -> dict[str, Any]:
     valid, err_msg = db.validate_email_authenticity(payload.email)
@@ -389,22 +429,7 @@ def register(payload: RegisterRequest) -> dict[str, Any]:
         phone=payload.phone,
     )
     if payload.two_factor_enabled:
-        channel = "sms" if payload.phone else "email"
-        recipient = payload.phone if (channel == "sms" and payload.phone) else payload.email
-        temp_token, code = db.create_2fa_challenge(user["id"], channel=channel)
-        return {
-            "require_2fa": True,
-            "temp_token": temp_token,
-            "message": f"Account created! 6-digit verification code dispatched via {channel.upper()} to {recipient}.",
-            "totp_secret": user.get("two_factor_secret"),
-            "dev_code_hint": code,
-            "dispatch": {
-                "channel": channel,
-                "recipient": recipient,
-                "code": code,
-                "status": "delivered"
-            }
-        }
+        return _challenge_response(user, "Account created!")
     token = db.create_session(user["id"])
     return {
         "require_2fa": False,
@@ -432,23 +457,7 @@ def login(payload: LoginRequest) -> dict[str, Any]:
         raise HTTPException(status_code=401, detail="Invalid email or password.")
 
     if user.get("two_factor_enabled"):
-        channel = "sms" if user.get("phone") else "email"
-        recipient = user.get("phone") if (channel == "sms" and user.get("phone")) else user["email"]
-        temp_token, code = db.create_2fa_challenge(user["id"], channel=channel)
-        return {
-            "require_2fa": True,
-            "temp_token": temp_token,
-            "message": f"Enter the 6-digit authentication security code dispatched via {channel.upper()} to {recipient}.",
-            "totp_secret": user.get("two_factor_secret"),
-            "dev_code_hint": code,
-            "dispatch": {
-                "channel": channel,
-                "recipient": recipient,
-                "code": code,
-                "status": "delivered"
-            }
-        }
-
+        return _challenge_response(user, "Enter the")
     token = db.create_session(user["id"])
     return {
         "require_2fa": False,
@@ -487,6 +496,38 @@ def verify_2fa(payload: TwoFactorVerifyRequest) -> dict[str, Any]:
             "two_factor_enabled": True,
         },
     }
+
+
+@app.post("/api/auth/2fa/resend")
+def resend_2fa(payload: TwoFactorResendRequest) -> dict[str, Any]:
+    try:
+        reissued = db.reissue_2fa_challenge(payload.temp_token)
+    except db.OtpResendCooldown as exc:
+        raise HTTPException(status_code=429, detail=str(exc), headers={"Retry-After": str(exc.retry_after)})
+    if not reissued:
+        raise HTTPException(status_code=400, detail="Verification session expired. Please sign in again.")
+    code, dispatch = reissued
+    receipt = _dispatch_payload(dispatch, code)
+    response = {
+        "message": f"New 6-digit code dispatched via {receipt['channel'].upper()} to {receipt['recipient']}.",
+        "dispatch": receipt,
+    }
+    if receipt["simulated"]:
+        response["dev_code_hint"] = code
+    return response
+
+
+@app.post("/api/auth/2fa/settings")
+def update_2fa_settings(payload: TwoFactorSettingsRequest, request: Request) -> dict[str, Any]:
+    user = _extract_user(request)
+    if not user:
+        raise HTTPException(status_code=401, detail="Not authenticated.")
+    # Turning protection off is the sensitive direction, so it needs the password again.
+    if not payload.enabled and user.get("password_hash"):
+        if not payload.password or not db.verify_password(payload.password, user["password_hash"], user["password_salt"]):
+            raise HTTPException(status_code=403, detail="Password confirmation required to disable 2FA.")
+    db.set_two_factor_enabled(user["id"], payload.enabled)
+    return {"two_factor_enabled": payload.enabled}
 
 
 @app.post("/api/auth/google")
@@ -539,6 +580,7 @@ def current_user(request: Request) -> dict[str, Any]:
             "avatar_url": user.get("avatar_url"),
             "two_factor_enabled": bool(user.get("two_factor_enabled")),
             "last_login": user.get("last_login"),
+            "created_at": user.get("created_at"),
             "scan_tokens": user.get("scan_tokens", 50),
             "scans_used": user.get("scans_used", 0),
             "account_tier": user.get("account_tier", "personal"),

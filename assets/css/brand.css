@@ -62,6 +62,29 @@
   --max: 1240px;
 }
 
+:root[data-theme="light"] {
+  color-scheme: light;
+
+  --canvas: #f8f9fa;
+  --card: #ffffff;
+  --card-hi: #f8fafc;
+  --line: #e2e8f0;
+  --line-hi: #cbd5e1;
+
+  --ink: #0f172a;
+  --ink-2: #334155;
+  --ink-3: #475569;
+  --ink-4: #64748b;
+
+  --accent: #e04f00;
+  --accent-hi: #ff5a00;
+  --accent-ink: #ffffff;
+
+  --safe: #15803d;
+  --warn: #a16207;
+  --danger: #dc2626;
+}
+
 *,
 *::before,
 *::after {

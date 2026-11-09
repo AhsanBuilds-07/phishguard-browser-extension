@@ -65,6 +65,372 @@
     toastTimer = setTimeout(() => toast.classList.remove('show'), 3500);
   }
 
+  // ==========================================================================
+  // Localization (data-i18n attributes, persisted in sentinel_lang)
+  // ==========================================================================
+
+  const LANGS = ['en', 'hi', 'gu', 'es'];
+
+  const I18N = {
+    en: {
+      'nav.overview': 'Overview',
+      'nav.monitor': 'Live Browser Monitor',
+      'nav.investigate': 'AI Threat Investigation',
+      'nav.analyzer': 'URL & Domain Analyzer',
+      'nav.intel': 'Threat Intelligence',
+      'nav.datasets': 'Dataset Explorer',
+      'nav.training': 'ML Training Lab',
+      'nav.registry': 'Model Registry',
+      'nav.history': 'Scan History',
+      'nav.privacy': 'Privacy Center',
+      'nav.settings': 'Settings',
+      'section.detection': 'DETECTION & MONITORING',
+      'section.studio': 'MODEL STUDIO',
+      'section.governance': 'GOVERNANCE',
+      'action.newInvestigation': 'New Investigation',
+      'action.investigateUrl': 'Investigate URL',
+      'action.viewMonitor': 'View Live Monitor',
+      'action.runInvestigation': 'Run Investigation',
+      'action.analyze': 'Analyze Structure',
+      'action.allHistory': 'All History',
+      'action.signOut': 'Sign Out',
+      'action.signIn': 'Sign In',
+      'action.copyToken': 'Copy Token',
+      'action.copied': 'Copied',
+      'action.viewHistory': 'View My Scan History',
+      'action.confirm': 'Confirm',
+      'verdict.safe': 'Safe',
+      'verdict.suspicious': 'Suspicious',
+      'verdict.malicious': 'Phishing Detected',
+      'verdict.unknown': 'Unknown',
+      'status.quotaExceeded': 'Quota Exceeded',
+      'status.secured': '2FA Secured',
+      'status.active': 'Session Active',
+      'status.guest': 'Guest — not signed in',
+      'profile.title': 'User Profile',
+      'profile.close': 'Close profile',
+      'profile.account': 'Account Details',
+      'profile.fullName': 'Full Name',
+      'profile.role': 'Role',
+      'profile.joined': 'Joined',
+      'profile.channels': 'Verified Channels',
+      'profile.email': 'Email',
+      'profile.phone': 'Mobile',
+      'profile.notLinked': 'Not linked',
+      'profile.quota': 'Token & Scan Quota',
+      'profile.unlimited': 'Unlimited',
+      'profile.scansRemaining': '{n}/{limit} Scans Remaining',
+      'profile.scansUsed': '{n} scans used on this account',
+      'profile.security': 'Security Health',
+      'profile.twofaOn': 'Two-Factor Authentication Active via Carrier SMS/TOTP',
+      'profile.twofaOff': 'Two-Factor Authentication Disabled',
+      'profile.confirmPassword': 'Confirm password to disable',
+      'profile.session': 'Active Session Key',
+      'profile.noSession': 'No active session',
+      'settings.theme': 'Light Theme',
+      'settings.themeDesc': 'Toggle between dark operations console and light workspace.',
+      'settings.language': 'Interface Language',
+      'settings.languageDesc': 'Translate navigation, actions, and status badges instantly.',
+      'theme.toLight': 'Switch to light theme',
+      'theme.toDark': 'Switch to dark theme',
+      'toast.copied': 'Session key copied to clipboard.',
+      'toast.copyFailed': 'Clipboard unavailable. Copy the key manually.',
+      'toast.twofaOn': 'Two-factor authentication enabled.',
+      'toast.twofaOff': 'Two-factor authentication disabled.',
+      'toast.needApi': 'Connect to the SentinelAI API to change security settings.'
+    },
+    hi: {
+      'nav.overview': 'अवलोकन',
+      'nav.monitor': 'लाइव ब्राउज़र मॉनिटर',
+      'nav.investigate': 'AI ख़तरा जाँच',
+      'nav.analyzer': 'URL और डोमेन विश्लेषक',
+      'nav.intel': 'ख़तरा इंटेलिजेंस',
+      'nav.datasets': 'डेटासेट एक्सप्लोरर',
+      'nav.training': 'ML प्रशिक्षण लैब',
+      'nav.registry': 'मॉडल रजिस्ट्री',
+      'nav.history': 'स्कैन इतिहास',
+      'nav.privacy': 'गोपनीयता केंद्र',
+      'nav.settings': 'सेटिंग्स',
+      'section.detection': 'पहचान और निगरानी',
+      'section.studio': 'मॉडल स्टूडियो',
+      'section.governance': 'गवर्नेंस',
+      'action.newInvestigation': 'नई जाँच',
+      'action.investigateUrl': 'URL की जाँच करें',
+      'action.viewMonitor': 'लाइव मॉनिटर देखें',
+      'action.runInvestigation': 'जाँच चलाएँ',
+      'action.analyze': 'संरचना का विश्लेषण करें',
+      'action.allHistory': 'पूरा इतिहास',
+      'action.signOut': 'साइन आउट',
+      'action.signIn': 'साइन इन',
+      'action.copyToken': 'टोकन कॉपी करें',
+      'action.copied': 'कॉपी हो गया',
+      'action.viewHistory': 'मेरा स्कैन इतिहास देखें',
+      'action.confirm': 'पुष्टि करें',
+      'verdict.safe': 'सुरक्षित',
+      'verdict.suspicious': 'संदिग्ध',
+      'verdict.malicious': 'फ़िशिंग पाई गई',
+      'verdict.unknown': 'अज्ञात',
+      'status.quotaExceeded': 'कोटा समाप्त',
+      'status.secured': '2FA सुरक्षित',
+      'status.active': 'सत्र सक्रिय',
+      'status.guest': 'अतिथि — साइन इन नहीं',
+      'profile.title': 'उपयोगकर्ता प्रोफ़ाइल',
+      'profile.close': 'प्रोफ़ाइल बंद करें',
+      'profile.account': 'खाता विवरण',
+      'profile.fullName': 'पूरा नाम',
+      'profile.role': 'भूमिका',
+      'profile.joined': 'शामिल होने की तिथि',
+      'profile.channels': 'सत्यापित चैनल',
+      'profile.email': 'ईमेल',
+      'profile.phone': 'मोबाइल',
+      'profile.notLinked': 'लिंक नहीं है',
+      'profile.quota': 'टोकन और स्कैन कोटा',
+      'profile.unlimited': 'असीमित',
+      'profile.scansRemaining': '{n}/{limit} स्कैन शेष',
+      'profile.scansUsed': 'इस खाते पर {n} स्कैन उपयोग हुए',
+      'profile.security': 'सुरक्षा स्थिति',
+      'profile.twofaOn': 'कैरियर SMS/TOTP द्वारा दो-चरणीय प्रमाणीकरण सक्रिय',
+      'profile.twofaOff': 'दो-चरणीय प्रमाणीकरण बंद है',
+      'profile.confirmPassword': 'बंद करने के लिए पासवर्ड की पुष्टि करें',
+      'profile.session': 'सक्रिय सत्र कुंजी',
+      'profile.noSession': 'कोई सक्रिय सत्र नहीं',
+      'settings.theme': 'लाइट थीम',
+      'settings.themeDesc': 'डार्क ऑपरेशंस कंसोल और लाइट वर्कस्पेस के बीच बदलें।',
+      'settings.language': 'इंटरफ़ेस भाषा',
+      'settings.languageDesc': 'नेविगेशन, क्रियाएँ और स्थिति बैज तुरंत अनुवादित करें।',
+      'theme.toLight': 'लाइट थीम पर जाएँ',
+      'theme.toDark': 'डार्क थीम पर जाएँ',
+      'toast.copied': 'सत्र कुंजी क्लिपबोर्ड पर कॉपी हो गई।',
+      'toast.copyFailed': 'क्लिपबोर्ड उपलब्ध नहीं है। कुंजी स्वयं कॉपी करें।',
+      'toast.twofaOn': 'दो-चरणीय प्रमाणीकरण चालू किया गया।',
+      'toast.twofaOff': 'दो-चरणीय प्रमाणीकरण बंद किया गया।',
+      'toast.needApi': 'सुरक्षा सेटिंग्स बदलने के लिए SentinelAI API से कनेक्ट करें।'
+    },
+    gu: {
+      'nav.overview': 'ઝાંખી',
+      'nav.monitor': 'લાઇવ બ્રાઉઝર મોનિટર',
+      'nav.investigate': 'AI જોખમ તપાસ',
+      'nav.analyzer': 'URL અને ડોમેન વિશ્લેષક',
+      'nav.intel': 'જોખમ ઇન્ટેલિજન્સ',
+      'nav.datasets': 'ડેટાસેટ એક્સપ્લોરર',
+      'nav.training': 'ML તાલીમ લેબ',
+      'nav.registry': 'મોડેલ રજિસ્ટ્રી',
+      'nav.history': 'સ્કેન ઇતિહાસ',
+      'nav.privacy': 'ગોપનીયતા કેન્દ્ર',
+      'nav.settings': 'સેટિંગ્સ',
+      'section.detection': 'શોધ અને દેખરેખ',
+      'section.studio': 'મોડેલ સ્ટુડિયો',
+      'section.governance': 'ગવર્નન્સ',
+      'action.newInvestigation': 'નવી તપાસ',
+      'action.investigateUrl': 'URL તપાસો',
+      'action.viewMonitor': 'લાઇવ મોનિટર જુઓ',
+      'action.runInvestigation': 'તપાસ ચલાવો',
+      'action.analyze': 'માળખાનું વિશ્લેષણ કરો',
+      'action.allHistory': 'સંપૂર્ણ ઇતિહાસ',
+      'action.signOut': 'સાઇન આઉટ',
+      'action.signIn': 'સાઇન ઇન',
+      'action.copyToken': 'ટોકન કૉપિ કરો',
+      'action.copied': 'કૉપિ થયું',
+      'action.viewHistory': 'મારો સ્કેન ઇતિહાસ જુઓ',
+      'action.confirm': 'પુષ્ટિ કરો',
+      'verdict.safe': 'સુરક્ષિત',
+      'verdict.suspicious': 'શંકાસ્પદ',
+      'verdict.malicious': 'ફિશિંગ મળ્યું',
+      'verdict.unknown': 'અજ્ઞાત',
+      'status.quotaExceeded': 'ક્વોટા પૂરો થયો',
+      'status.secured': '2FA સુરક્ષિત',
+      'status.active': 'સત્ર સક્રિય',
+      'status.guest': 'મહેમાન — સાઇન ઇન નથી',
+      'profile.title': 'વપરાશકર્તા પ્રોફાઇલ',
+      'profile.close': 'પ્રોફાઇલ બંધ કરો',
+      'profile.account': 'એકાઉન્ટ વિગતો',
+      'profile.fullName': 'પૂરું નામ',
+      'profile.role': 'ભૂમિકા',
+      'profile.joined': 'જોડાયાની તારીખ',
+      'profile.channels': 'ચકાસાયેલ ચેનલો',
+      'profile.email': 'ઇમેઇલ',
+      'profile.phone': 'મોબાઇલ',
+      'profile.notLinked': 'લિંક કરેલ નથી',
+      'profile.quota': 'ટોકન અને સ્કેન ક્વોટા',
+      'profile.unlimited': 'અમર્યાદિત',
+      'profile.scansRemaining': '{n}/{limit} સ્કેન બાકી',
+      'profile.scansUsed': 'આ એકાઉન્ટ પર {n} સ્કેન વપરાયા',
+      'profile.security': 'સુરક્ષા સ્થિતિ',
+      'profile.twofaOn': 'કેરિયર SMS/TOTP દ્વારા બે-પગલાં પ્રમાણીકરણ સક્રિય',
+      'profile.twofaOff': 'બે-પગલાં પ્રમાણીકરણ બંધ છે',
+      'profile.confirmPassword': 'બંધ કરવા માટે પાસવર્ડની પુષ્ટિ કરો',
+      'profile.session': 'સક્રિય સત્ર કી',
+      'profile.noSession': 'કોઈ સક્રિય સત્ર નથી',
+      'settings.theme': 'લાઇટ થીમ',
+      'settings.themeDesc': 'ડાર્ક ઓપરેશન્સ કન્સોલ અને લાઇટ વર્કસ્પેસ વચ્ચે બદલો.',
+      'settings.language': 'ઇન્ટરફેસ ભાષા',
+      'settings.languageDesc': 'નેવિગેશન, ક્રિયાઓ અને સ્થિતિ બેજનો તરત અનુવાદ કરો.',
+      'theme.toLight': 'લાઇટ થીમ પર જાઓ',
+      'theme.toDark': 'ડાર્ક થીમ પર જાઓ',
+      'toast.copied': 'સત્ર કી ક્લિપબોર્ડ પર કૉપિ થઈ.',
+      'toast.copyFailed': 'ક્લિપબોર્ડ ઉપલબ્ધ નથી. કી જાતે કૉપિ કરો.',
+      'toast.twofaOn': 'બે-પગલાં પ્રમાણીકરણ ચાલુ કર્યું.',
+      'toast.twofaOff': 'બે-પગલાં પ્રમાણીકરણ બંધ કર્યું.',
+      'toast.needApi': 'સુરક્ષા સેટિંગ્સ બદલવા માટે SentinelAI API સાથે જોડાઓ.'
+    },
+    es: {
+      'nav.overview': 'Resumen',
+      'nav.monitor': 'Monitor del navegador en vivo',
+      'nav.investigate': 'Investigación de amenazas con IA',
+      'nav.analyzer': 'Analizador de URL y dominios',
+      'nav.intel': 'Inteligencia de amenazas',
+      'nav.datasets': 'Explorador de datasets',
+      'nav.training': 'Laboratorio de entrenamiento ML',
+      'nav.registry': 'Registro de modelos',
+      'nav.history': 'Historial de escaneos',
+      'nav.privacy': 'Centro de privacidad',
+      'nav.settings': 'Configuración',
+      'section.detection': 'DETECCIÓN Y MONITOREO',
+      'section.studio': 'ESTUDIO DE MODELOS',
+      'section.governance': 'GOBERNANZA',
+      'action.newInvestigation': 'Nueva investigación',
+      'action.investigateUrl': 'Investigar URL',
+      'action.viewMonitor': 'Ver monitor en vivo',
+      'action.runInvestigation': 'Ejecutar investigación',
+      'action.analyze': 'Analizar estructura',
+      'action.allHistory': 'Todo el historial',
+      'action.signOut': 'Cerrar sesión',
+      'action.signIn': 'Iniciar sesión',
+      'action.copyToken': 'Copiar token',
+      'action.copied': 'Copiado',
+      'action.viewHistory': 'Ver mi historial de escaneos',
+      'action.confirm': 'Confirmar',
+      'verdict.safe': 'Seguro',
+      'verdict.suspicious': 'Sospechoso',
+      'verdict.malicious': 'Phishing detectado',
+      'verdict.unknown': 'Desconocido',
+      'status.quotaExceeded': 'Cuota agotada',
+      'status.secured': '2FA protegido',
+      'status.active': 'Sesión activa',
+      'status.guest': 'Invitado — sin sesión',
+      'profile.title': 'Perfil de usuario',
+      'profile.close': 'Cerrar perfil',
+      'profile.account': 'Detalles de la cuenta',
+      'profile.fullName': 'Nombre completo',
+      'profile.role': 'Rol',
+      'profile.joined': 'Miembro desde',
+      'profile.channels': 'Canales verificados',
+      'profile.email': 'Correo',
+      'profile.phone': 'Móvil',
+      'profile.notLinked': 'No vinculado',
+      'profile.quota': 'Cuota de tokens y escaneos',
+      'profile.unlimited': 'Ilimitado',
+      'profile.scansRemaining': '{n}/{limit} escaneos restantes',
+      'profile.scansUsed': '{n} escaneos usados en esta cuenta',
+      'profile.security': 'Estado de seguridad',
+      'profile.twofaOn': 'Autenticación de dos factores activa vía SMS/TOTP',
+      'profile.twofaOff': 'Autenticación de dos factores desactivada',
+      'profile.confirmPassword': 'Confirma tu contraseña para desactivar',
+      'profile.session': 'Clave de sesión activa',
+      'profile.noSession': 'Sin sesión activa',
+      'settings.theme': 'Tema claro',
+      'settings.themeDesc': 'Alterna entre la consola de operaciones oscura y el espacio de trabajo claro.',
+      'settings.language': 'Idioma de la interfaz',
+      'settings.languageDesc': 'Traduce al instante la navegación, las acciones y las insignias de estado.',
+      'theme.toLight': 'Cambiar a tema claro',
+      'theme.toDark': 'Cambiar a tema oscuro',
+      'toast.copied': 'Clave de sesión copiada al portapapeles.',
+      'toast.copyFailed': 'Portapapeles no disponible. Copia la clave manualmente.',
+      'toast.twofaOn': 'Autenticación de dos factores activada.',
+      'toast.twofaOff': 'Autenticación de dos factores desactivada.',
+      'toast.needApi': 'Conéctate a la API de SentinelAI para cambiar la configuración de seguridad.'
+    }
+  };
+
+  function readPref(key, allowed, fallback) {
+    try {
+      const v = localStorage.getItem(key);
+      return allowed.includes(v) ? v : fallback;
+    } catch (e) {
+      return fallback;
+    }
+  }
+
+  let currentLang = readPref('sentinel_lang', LANGS, 'en');
+
+  function t(key, vars) {
+    let text = (I18N[currentLang] && I18N[currentLang][key]) ?? I18N.en[key] ?? key;
+    if (vars) Object.keys(vars).forEach(k => { text = text.replace(`{${k}}`, vars[k]); });
+    return text;
+  }
+
+  function verdictLabel(verdict) {
+    const v = ['safe', 'suspicious', 'malicious'].includes(verdict) ? verdict : (verdict ? 'unknown' : 'safe');
+    return t(`verdict.${v}`).toUpperCase();
+  }
+
+  function applyI18n(root = document) {
+    root.querySelectorAll('[data-i18n]').forEach(el => { el.textContent = t(el.dataset.i18n); });
+    root.querySelectorAll('[data-i18n-aria]').forEach(el => el.setAttribute('aria-label', t(el.dataset.i18nAria)));
+    root.querySelectorAll('[data-i18n-placeholder]').forEach(el => el.setAttribute('placeholder', t(el.dataset.i18nPlaceholder)));
+    document.documentElement.lang = currentLang;
+    ['lang-select', 'settings-lang-select'].forEach(id => { const sel = byId(id); if (sel) sel.value = currentLang; });
+  }
+
+  function setLanguage(lang) {
+    if (!LANGS.includes(lang) || lang === currentLang) return;
+    currentLang = lang;
+    try { localStorage.setItem('sentinel_lang', lang); } catch (e) {}
+    applyI18n();
+    syncThemeControls();
+    renderProfile();
+    // Re-render the active view so dynamic verdict badges pick up the new language.
+    setView(state.activeView);
+  }
+
+  // ==========================================================================
+  // Theme (data-theme on <html>, persisted in sentinel_theme)
+  // ==========================================================================
+
+  function currentTheme() {
+    return document.documentElement.getAttribute('data-theme') === 'light' ? 'light' : 'dark';
+  }
+
+  function syncThemeControls() {
+    const isLight = currentTheme() === 'light';
+    const toggle = byId('theme-toggle');
+    if (toggle) {
+      const icon = toggle.querySelector('.theme-icon');
+      // Icon shows the theme you will switch to.
+      if (icon) icon.textContent = isLight ? '🌙' : '☀️';
+      toggle.dataset.i18nAria = isLight ? 'theme.toDark' : 'theme.toLight';
+      toggle.setAttribute('aria-label', t(toggle.dataset.i18nAria));
+      toggle.title = t(toggle.dataset.i18nAria);
+    }
+    const settingsToggle = byId('settings-theme-toggle');
+    if (settingsToggle) settingsToggle.setAttribute('aria-checked', isLight ? 'true' : 'false');
+    const meta = document.querySelector('meta[name="theme-color"]');
+    if (meta) meta.setAttribute('content', isLight ? '#f8f9fa' : '#08090a');
+  }
+
+  function setTheme(theme) {
+    document.documentElement.setAttribute('data-theme', theme);
+    try { localStorage.setItem('sentinel_theme', theme); } catch (e) {}
+    syncThemeControls();
+  }
+
+  function bindPreferenceControls() {
+    const toggleTheme = () => setTheme(currentTheme() === 'light' ? 'dark' : 'light');
+    byId('theme-toggle')?.addEventListener('click', toggleTheme);
+    byId('settings-theme-toggle')?.addEventListener('click', toggleTheme);
+    ['lang-select', 'settings-lang-select'].forEach(id => {
+      byId(id)?.addEventListener('change', e => setLanguage(e.target.value));
+    });
+    // Keep multiple open tabs in step.
+    window.addEventListener('storage', e => {
+      if (e.key === 'sentinel_theme' && (e.newValue === 'light' || e.newValue === 'dark')) {
+        document.documentElement.setAttribute('data-theme', e.newValue);
+        syncThemeControls();
+      }
+      if (e.key === 'sentinel_lang' && LANGS.includes(e.newValue)) setLanguage(e.newValue);
+    });
+  }
+
   // Cross-environment storage helper (Chrome Extension Storage fallback to localStorage)
   function getLocalData(key, fallback = null) {
     return new Promise((resolve) => {
@@ -162,7 +528,7 @@
     document.querySelectorAll('.nav-link').forEach(btn => btn.classList.toggle('active', btn.dataset.view === view));
 
     const titleEl = byId('page-title');
-    if (titleEl) titleEl.textContent = VIEW_LABELS[view];
+    if (titleEl) titleEl.textContent = t(`nav.${view}`);
 
     if (location.hash !== `#${view}`) {
       window.history.replaceState(null, '', `#${view}`);
@@ -229,7 +595,7 @@
             <div style="display:flex; align-items:center; gap:8px;">
               ${item.brandMatch ? `<span class="tag-live" style="background:var(--danger); color:var(--canvas);">${escapeHtml(item.brandMatch)}</span>` : ''}
               <span class="pill pill-${item.verdict === 'malicious' ? 'danger' : item.verdict === 'suspicious' ? 'warn' : 'safe'}" style="font-size:10px; padding:3px 8px; font-weight:700;">
-                ${escapeHtml((item.verdict || 'safe').toUpperCase())}
+                ${escapeHtml(verdictLabel(item.verdict))}
               </span>
             </div>
           </div>
@@ -314,7 +680,7 @@
                 <tr>
                   <td>${formatDate(item.timestamp)}</td>
                   <td><strong>${escapeHtml(item.hostname)}</strong><div style="font-size:10px; color:var(--ink-3); max-width:280px; overflow:hidden; text-overflow:ellipsis;">${escapeHtml(item.url)}</div></td>
-                  <td><span class="feed-status status-${item.verdict === 'malicious' ? 'optin' : 'active'}" style="background:${item.verdict === 'malicious' ? 'var(--danger)' : item.verdict === 'suspicious' ? 'var(--warn)' : 'var(--safe)'}; color:var(--canvas);">${escapeHtml(item.verdict.toUpperCase())}</span></td>
+                  <td><span class="feed-status status-${item.verdict === 'malicious' ? 'optin' : 'active'}" style="background:${item.verdict === 'malicious' ? 'var(--danger)' : item.verdict === 'suspicious' ? 'var(--warn)' : 'var(--safe)'}; color:var(--canvas);">${escapeHtml(verdictLabel(item.verdict))}</span></td>
                   <td><strong>${Math.round((item.riskScore || 0) * 100)}%</strong></td>
                   <td>${item.brandMatch ? `<span class="tag-live" style="background:var(--danger); color:var(--canvas);">${escapeHtml(item.brandMatch)}</span>` : '<span style="color:var(--ink-3);">—</span>'}</td>
                   <td><small style="color:var(--ink-2);">${escapeHtml(item.summary || 'Inspected')}</small></td>
@@ -428,7 +794,7 @@
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
           <div style="display:flex; align-items:center; gap:10px;">
             <span class="badge-threat" style="background:${statusColor}; color:var(--canvas); font-size:11px; font-weight:800; padding:4px 10px; ">
-              ${escapeHtml(report.verdict.toUpperCase())}
+              ${escapeHtml(verdictLabel(report.verdict))}
             </span>
             <strong style="font-size:16px; color:var(--ink);">${escapeHtml(report.hostname)}</strong>
           </div>
@@ -931,7 +1297,7 @@
                 <td><small style="color:var(--ink-2); font-weight:600;">${escapeHtml(item.user_email || 'guest@terminal')}</small></td>
                 <td>${formatDate(item.timestamp)}</td>
                 <td><strong style="color:var(--ink);">${escapeHtml(item.hostname)}</strong></td>
-                <td><span class="pill pill-${item.verdict === 'malicious' ? 'danger' : item.verdict === 'suspicious' ? 'warn' : 'safe'}">${escapeHtml((item.verdict || 'safe').toUpperCase())}</span></td>
+                <td><span class="pill pill-${item.verdict === 'malicious' ? 'danger' : item.verdict === 'suspicious' ? 'warn' : 'safe'}">${escapeHtml(verdictLabel(item.verdict))}</span></td>
                 <td><strong style="color:${item.riskScore > 0.7 ? 'var(--danger)' : item.riskScore > 0.3 ? 'var(--warn)' : 'var(--safe)'};">${Math.round((item.riskScore || 0) * 100)}%</strong></td>
                 <td><span class="pill pill-safe" style="font-size:10px; display:inline-flex; align-items:center; gap:4px;">Stored · SQLite</span></td>
               </tr>
@@ -1054,52 +1420,359 @@
     }
   }
 
-  function initUserChip() {
-    const userJson = localStorage.getItem('sentinel_user');
-    const nameEl = byId('operator-name');
-    const avatarEl = byId('operator-avatar');
-    const subEl = byId('operator-sub');
-    const authLink = byId('operator-auth-link');
+  // ==========================================================================
+  // User profile: header badge, sidebar chip, and profile drawer
+  // ==========================================================================
 
-    if (userJson) {
-      try {
-        const user = JSON.parse(userJson);
-        const displayName = user.name || user.email || 'Operator';
-        if (nameEl) nameEl.textContent = displayName;
-        if (avatarEl) avatarEl.textContent = displayName.substring(0, 2).toUpperCase();
-        if (subEl) {
-          subEl.innerHTML = `<span style="font-size:8px; color:var(--safe);">●</span> <span>${user.two_factor_enabled ? '2FA Secured' : 'Operator Active'}</span>`;
-        }
-        if (authLink) {
-          authLink.textContent = 'Exit ↗';
-          authLink.title = 'Sign Out';
-          authLink.href = '#';
-          authLink.onclick = (e) => {
-            e.preventDefault();
-            localStorage.removeItem('sentinel_token');
-            localStorage.removeItem('sentinel_user');
-            window.location.href = '/auth.html';
-          };
-        }
-      } catch (_) {}
-    } else {
-      if (nameEl) nameEl.textContent = 'Guest Operator';
-      if (subEl) {
-        subEl.innerHTML = `<a href="/auth.html" style="color:var(--ink); text-decoration:none;">Sign In / 2FA ↗</a>`;
-      }
-      if (authLink) {
-        authLink.textContent = '✦';
-        authLink.href = '/auth.html';
-      }
+  const ROOT_ADMIN_EMAIL = 'admin@sentinelai.security';
+  const profile = { user: null, quota: null, token: null, lastFocus: null };
+
+  function readSession() {
+    let user = null;
+    let token = null;
+    try {
+      token = localStorage.getItem('sentinel_token');
+      const raw = localStorage.getItem('sentinel_user');
+      user = raw ? JSON.parse(raw) : null;
+    } catch (e) {}
+    return { user, token };
+  }
+
+  function initialsFor(name) {
+    const parts = String(name || '').replace(/@.*/, '').split(/[\s._-]+/).filter(Boolean);
+    if (parts.length === 0) return 'SA';
+    return (parts.length === 1 ? parts[0].slice(0, 2) : parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+  }
+
+  function roleFor(user) {
+    if (!user) return { key: 'guest', label: 'GUEST' };
+    if ((user.email || '').toLowerCase() === ROOT_ADMIN_EMAIL) return { key: 'cso', label: 'CSO' };
+    if (user.role === 'admin') return { key: 'admin', label: 'ADMIN' };
+    return { key: 'user', label: 'USER' };
+  }
+
+  // Same quota rules as ml/database.py check_scan_quota, used when the API is unreachable.
+  function localQuota(user) {
+    if (!user) return { account_tier: 'guest', limit: 1, tokens_remaining: 1, scans_used: 0 };
+    const used = user.scans_used || 0;
+    if (user.account_tier === 'demo' || user.email === 'demo@sentinelai.security') {
+      return { account_tier: 'demo', limit: 5, tokens_remaining: Math.max(0, 5 - used), scans_used: used };
+    }
+    const limit = user.scan_tokens || 50;
+    return { account_tier: user.role || 'personal', limit, tokens_remaining: Math.max(0, limit - used), scans_used: used };
+  }
+
+  function truncateToken(token) {
+    if (!token) return '';
+    return token.length <= 18 ? token : `${token.slice(0, 10)}…${token.slice(-6)}`;
+  }
+
+  async function loadProfile() {
+    const { user, token } = readSession();
+    profile.user = user;
+    profile.token = token;
+    profile.quota = localQuota(user);
+    renderProfile();
+
+    if (!token) return;
+    try {
+      const me = await api('/api/auth/me');
+      profile.user = { ...user, ...me.user };
+      profile.quota = me.quota || profile.quota;
+      try { localStorage.setItem('sentinel_user', JSON.stringify(profile.user)); } catch (e) {}
+      renderProfile();
+    } catch (e) {
+      // Offline or standalone session: keep the locally stored profile.
     }
   }
 
-  window.handleUserChipClick = function() {
-    const userJson = localStorage.getItem('sentinel_user');
-    if (!userJson) {
-      window.location.href = '/auth.html';
+  function setText(id, value) {
+    const el = byId(id);
+    if (el) el.textContent = value;
+  }
+
+  function renderProfile() {
+    const user = profile.user;
+    const role = roleFor(user);
+    const name = user ? (user.name || user.email || 'Operator') : 'Guest Operator';
+    const initials = user ? initialsFor(user.name || user.email) : 'SA';
+    const twofa = Boolean(user && user.two_factor_enabled);
+
+    // Header badge
+    setText('profile-badge-avatar', initials);
+    setText('profile-badge-name', name);
+    const badgeStatus = byId('profile-badge-status');
+    if (badgeStatus) {
+      badgeStatus.classList.toggle('is-guest', !user);
+      const label = badgeStatus.querySelector('span');
+      label.dataset.i18n = !user ? 'status.guest' : twofa ? 'status.secured' : 'status.active';
+      label.textContent = t(label.dataset.i18n);
     }
-  };
+
+    // Sidebar chip
+    setText('operator-avatar', initials);
+    setText('operator-name', name);
+    const subEl = byId('operator-sub');
+    if (subEl) {
+      subEl.innerHTML = user
+        ? `<i class="status-orb" style="width:5px;height:5px"></i> <span>${escapeHtml(t(twofa ? 'status.secured' : 'status.active'))}</span>`
+        : `<a href="${authUrl()}" style="color:var(--ink); text-decoration:none;">${escapeHtml(t('action.signIn'))} / 2FA ↗</a>`;
+    }
+    const authLink = byId('operator-auth-link');
+    if (authLink) {
+      authLink.textContent = user ? 'Exit ↗' : '✦';
+      authLink.title = user ? t('action.signOut') : t('action.signIn');
+      authLink.href = user ? '#' : authUrl();
+    }
+
+    // Drawer: identity + account
+    setText('profile-avatar', initials);
+    setText('profile-name', name);
+    const roleEl = byId('profile-role');
+    if (roleEl) {
+      roleEl.textContent = role.label;
+      roleEl.dataset.role = role.key;
+    }
+    setText('profile-fullname', user ? (user.name || '—') : '—');
+    setText('profile-role-text', role.key === 'cso' ? 'CSO · Chief Security Officer' : role.label);
+    setText('profile-joined', user && user.created_at
+      ? new Date(user.created_at).toLocaleDateString(currentLang, { year: 'numeric', month: 'short', day: 'numeric' })
+      : '—');
+
+    // Drawer: channels
+    const emailEl = byId('profile-email');
+    if (emailEl) {
+      emailEl.innerHTML = user && user.email
+        ? `${escapeHtml(user.email)}<span class="verified-tick" title="Verified">✓</span>`
+        : '—';
+    }
+    const phoneEl = byId('profile-phone');
+    if (phoneEl) {
+      phoneEl.innerHTML = user && user.phone
+        ? `${escapeHtml(user.phone)}<span class="verified-tick" title="Verified">✓</span>`
+        : escapeHtml(t('profile.notLinked'));
+    }
+
+    renderQuota();
+
+    // Drawer: security health
+    const statusEl = byId('profile-2fa-status');
+    if (statusEl) {
+      statusEl.classList.toggle('is-off', !twofa);
+      statusEl.querySelector('span').textContent = t(twofa ? 'profile.twofaOn' : 'profile.twofaOff');
+    }
+    const twofaToggle = byId('profile-2fa-toggle');
+    if (twofaToggle) {
+      twofaToggle.setAttribute('aria-checked', twofa ? 'true' : 'false');
+      twofaToggle.disabled = !user;
+    }
+
+    // Drawer: session key
+    setText('profile-session-key', profile.token ? truncateToken(profile.token) : t('profile.noSession'));
+    const copyBtn = byId('profile-copy-token');
+    if (copyBtn) copyBtn.disabled = !profile.token;
+
+    const signOutBtn = byId('profile-signout');
+    if (signOutBtn) {
+      signOutBtn.dataset.i18n = user ? 'action.signOut' : 'action.signIn';
+      signOutBtn.textContent = t(signOutBtn.dataset.i18n);
+    }
+  }
+
+  function renderQuota() {
+    const q = profile.quota || localQuota(null);
+    const tier = q.account_tier || 'guest';
+    const limited = tier === 'guest' || tier === 'demo';
+    const remaining = Math.max(0, q.tokens_remaining ?? 0);
+    const limit = Math.max(1, q.limit || 1);
+    const exhausted = limited && remaining === 0;
+
+    setText('profile-quota-label', exhausted
+      ? t('status.quotaExceeded')
+      : limited ? t('profile.scansRemaining', { n: remaining, limit }) : t('profile.unlimited'));
+    setText('profile-quota-tier', `${String(tier).toUpperCase()} TIER`);
+    setText('profile-quota-note', t('profile.scansUsed', { n: q.scans_used || 0 }));
+
+    const track = byId('profile-quota-track');
+    const fill = byId('profile-quota-fill');
+    if (track) track.dataset.level = exhausted || (limited && remaining / limit <= 0.2) ? 'low' : 'ok';
+    if (fill) fill.style.width = `${limited ? Math.round((remaining / limit) * 100) : 100}%`;
+  }
+
+  function authUrl() {
+    // /auth is a clean route on the FastAPI and Vercel hosts; the extension package only has the file.
+    return location.protocol.startsWith('http') ? '/auth' : '../auth.html';
+  }
+
+  function drawerFocusables() {
+    return Array.from(byId('profile-drawer').querySelectorAll('button:not([disabled]), input, [href]'))
+      .filter(el => el.offsetParent !== null);
+  }
+
+  function openProfile() {
+    const drawer = byId('profile-drawer');
+    if (!drawer || drawer.classList.contains('open')) return;
+    profile.lastFocus = document.activeElement;
+    renderProfile();
+    drawer.classList.add('open');
+    drawer.setAttribute('aria-hidden', 'false');
+    byId('drawer-scrim')?.classList.add('open');
+    byId('profile-badge')?.setAttribute('aria-expanded', 'true');
+    document.body.classList.add('drawer-locked');
+    // Let the slide-in start before the bar animates from its old width.
+    const fill = byId('profile-quota-fill');
+    if (fill) {
+      const target = fill.style.width;
+      fill.style.width = '0';
+      requestAnimationFrame(() => requestAnimationFrame(() => { fill.style.width = target; }));
+    }
+    setTimeout(() => byId('profile-close')?.focus(), 60);
+    loadProfile();
+  }
+
+  function closeProfile() {
+    const drawer = byId('profile-drawer');
+    if (!drawer || !drawer.classList.contains('open')) return;
+    drawer.classList.remove('open');
+    drawer.setAttribute('aria-hidden', 'true');
+    byId('drawer-scrim')?.classList.remove('open');
+    byId('profile-badge')?.setAttribute('aria-expanded', 'false');
+    document.body.classList.remove('drawer-locked');
+    byId('profile-2fa-confirm')?.classList.remove('show');
+    if (profile.lastFocus && profile.lastFocus.focus) profile.lastFocus.focus();
+  }
+
+  async function copySessionKey() {
+    if (!profile.token) return;
+    const btn = byId('profile-copy-token');
+    try {
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(profile.token);
+      } else {
+        const ta = document.createElement('textarea');
+        ta.value = profile.token;
+        ta.setAttribute('readonly', '');
+        ta.style.position = 'fixed';
+        ta.style.opacity = '0';
+        document.body.appendChild(ta);
+        ta.select();
+        const ok = document.execCommand('copy');
+        ta.remove();
+        if (!ok) throw new Error('copy failed');
+      }
+      showToast(t('toast.copied'));
+      if (btn) {
+        btn.classList.add('copied');
+        btn.textContent = t('action.copied');
+        setTimeout(() => {
+          btn.classList.remove('copied');
+          btn.textContent = t('action.copyToken');
+        }, 1600);
+      }
+    } catch (e) {
+      showToast(t('toast.copyFailed'), true);
+    }
+  }
+
+  async function updateTwoFactor(enabled, password) {
+    try {
+      const res = await api('/api/auth/2fa/settings', {
+        method: 'POST',
+        body: JSON.stringify(password ? { enabled, password } : { enabled })
+      });
+      profile.user = { ...profile.user, two_factor_enabled: res.two_factor_enabled };
+      try { localStorage.setItem('sentinel_user', JSON.stringify(profile.user)); } catch (e) {}
+      byId('profile-2fa-confirm')?.classList.remove('show');
+      const pw = byId('profile-2fa-password');
+      if (pw) pw.value = '';
+      renderProfile();
+      showToast(t(enabled ? 'toast.twofaOn' : 'toast.twofaOff'));
+    } catch (err) {
+      showToast(state.apiOnline ? err.message : t('toast.needApi'), true);
+    }
+  }
+
+  async function signOut() {
+    const token = profile.token || readSession().token;
+    if (token && state.apiOnline) {
+      // Revoke the server-side session too, not just the local copy.
+      try { await api('/api/auth/logout', { method: 'POST' }); } catch (e) {}
+    }
+    // Clears the session only; theme, language, whitelist and local scan history are device preferences.
+    ['sentinel_token', 'sentinel_user'].forEach(k => { try { localStorage.removeItem(k); } catch (e) {} });
+    document.cookie = 'sentinel_session=; path=/; max-age=0; SameSite=Lax';
+    try {
+      if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
+        chrome.storage.local.remove(['sentinel_token', 'sentinel_user']);
+      }
+    } catch (e) {}
+    window.location.href = authUrl();
+  }
+
+  function bindProfile() {
+    byId('profile-badge')?.addEventListener('click', openProfile);
+    byId('profile-close')?.addEventListener('click', closeProfile);
+    byId('drawer-scrim')?.addEventListener('click', closeProfile);
+    byId('profile-copy-token')?.addEventListener('click', copySessionKey);
+    byId('profile-view-history')?.addEventListener('click', () => {
+      closeProfile();
+      setView('history');
+    });
+    byId('profile-signout')?.addEventListener('click', () => {
+      if (profile.user) signOut();
+      else window.location.href = authUrl();
+    });
+
+    const chip = byId('operator-user-chip');
+    if (chip) {
+      chip.addEventListener('click', openProfile);
+      chip.addEventListener('keydown', e => {
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openProfile(); }
+      });
+    }
+    byId('operator-auth-link')?.addEventListener('click', e => {
+      e.stopPropagation();
+      if (profile.user) {
+        e.preventDefault();
+        signOut();
+      }
+    });
+
+    byId('profile-2fa-toggle')?.addEventListener('click', () => {
+      if (!profile.user) return;
+      if (profile.user.two_factor_enabled) {
+        // Disabling needs the password again (OAuth accounts have none on file).
+        if (profile.user.auth_provider === 'google') {
+          updateTwoFactor(false);
+        } else {
+          byId('profile-2fa-confirm')?.classList.toggle('show');
+          byId('profile-2fa-password')?.focus();
+        }
+      } else {
+        updateTwoFactor(true);
+      }
+    });
+    byId('profile-2fa-confirm')?.addEventListener('submit', e => {
+      e.preventDefault();
+      const pw = byId('profile-2fa-password')?.value || '';
+      if (pw) updateTwoFactor(false, pw);
+    });
+
+    document.addEventListener('keydown', e => {
+      const drawer = byId('profile-drawer');
+      if (!drawer || !drawer.classList.contains('open')) return;
+      if (e.key === 'Escape') {
+        closeProfile();
+      } else if (e.key === 'Tab') {
+        const items = drawerFocusables();
+        if (items.length === 0) return;
+        const first = items[0];
+        const last = items[items.length - 1];
+        if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+        else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+      }
+    });
+  }
 
   // ==========================================================================
   // Initial Boot
@@ -1110,24 +1783,16 @@
     const todayLabel = byId('today-label');
     if (todayLabel) todayLabel.textContent = new Date().toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
 
-    initUserChip();
+    applyI18n();
+    syncThemeControls();
+    bindPreferenceControls();
+    bindProfile();
+    loadProfile();
     bindNavigation();
     bindInvestigationForm();
     bindAnalyzerForm();
     bindHistoryActions();
     bindPrivacyCenter();
-
-    // Theme toggle
-    const themeToggle = byId('theme-toggle');
-    const settingsThemeToggle = byId('settings-theme-toggle');
-    const toggleTheme = () => {
-      document.body.classList.toggle('light-theme');
-      const isLight = document.body.classList.contains('light-theme');
-      localStorage.setItem('sentinel_theme', isLight ? 'light' : 'dark');
-      if (settingsThemeToggle) settingsThemeToggle.setAttribute('aria-checked', isLight ? 'true' : 'false');
-    };
-    if (themeToggle) themeToggle.addEventListener('click', toggleTheme);
-    if (settingsThemeToggle) settingsThemeToggle.addEventListener('click', toggleTheme);
 
     // Initial check of local engine
     await checkApiHealth();
