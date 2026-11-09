@@ -511,7 +511,10 @@ def export_model(version: str) -> FileResponse:
 
 
 @app.get("/")
-def dashboard() -> FileResponse:
+def root_index() -> FileResponse:
+    index_path = ROOT_DIR / "index.html"
+    if index_path.is_file():
+        return FileResponse(index_path)
     return FileResponse(ROOT_DIR / "dashboard" / "index.html")
 
 

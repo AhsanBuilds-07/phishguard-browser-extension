@@ -1,0 +1,11 @@
+{
+  "cleanUrls": true,
+  "trailingSlash": false,
+  "rewrites": [
+    { "source": "/dashboard.css", "destination": "/dashboard/dashboard.css" },
+    { "source": "/dashboard.js", "destination": "/dashboard/dashboard.js" },
+    { "source": "/dashboard", "destination": "/dashboard/index.html" },
+    { "source": "/demo", "destination": "/demo.html" },
+    { "source": "/landing", "destination": "/index.html" }
+  ]
+}
