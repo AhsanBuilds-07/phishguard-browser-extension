@@ -786,7 +786,14 @@ def dashboard_asset(asset_path: str) -> FileResponse:
     path = (dashboard_root / asset_path).resolve()
     if dashboard_root not in path.parents or not path.is_file():
         raise HTTPException(status_code=404, detail="Dashboard asset was not found.")
-    media_type = "text/css" if path.suffix == ".css" else "text/javascript" if path.suffix == ".js" else None
+    mime_types = {
+        ".css": "text/css",
+        ".js": "text/javascript",
+        ".html": "text/html",
+        ".woff2": "font/woff2",
+        ".png": "image/png"
+    }
+    media_type = mime_types.get(path.suffix)
     return FileResponse(path, media_type=media_type)
 
 
@@ -847,5 +854,12 @@ def popup_asset(asset_path: str) -> FileResponse:
     path = (popup_root / asset_path).resolve()
     if popup_root not in path.parents or not path.is_file():
         raise HTTPException(status_code=404, detail="Popup asset was not found.")
-    media_type = "text/css" if path.suffix == ".css" else "text/javascript" if path.suffix == ".js" else None
+    mime_types = {
+        ".css": "text/css",
+        ".js": "text/javascript",
+        ".html": "text/html",
+        ".woff2": "font/woff2",
+        ".png": "image/png"
+    }
+    media_type = mime_types.get(path.suffix)
     return FileResponse(path, media_type=media_type)
