@@ -2,167 +2,103 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>SentinelAI - Link Shield</title>
+  <meta name="viewport" content="width=360">
+  <title>SentinelAI</title>
   <link rel="stylesheet" href="popup.css">
 </head>
 <body>
-  <div class="sentinel-app">
-    <!-- Header -->
-    <header class="app-header">
-      <div class="brand">
-        <div class="shield-icon" aria-hidden="true">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
-            <path d="M9 12l2 2 4-4"/>
-          </svg>
-        </div>
-        <div class="brand-text">
-          <span class="brand-title">SentinelAI</span>
-          <span class="brand-sub">Cyber Defense • On-Device AI</span>
-        </div>
-      </div>
+  <div class="app" id="app">
 
-      <div class="live-pill" id="live-indicator" title="SentinelAI is actively guarding your navigation">
-        <span class="pulse-dot"></span>
-        <span>Active Shield</span>
+    <!-- Header -->
+    <header class="hd" data-r>
+      <div class="hd-mark">
+        <span class="wordmark">SENTINEL<span class="wordmark-slash">/</span>AI</span>
+        <span class="hd-meta"><span id="model-version">rf-local</span> &middot; on-device</span>
       </div>
+      <span class="status-chip" id="status-chip" title="Navigation guard is running">
+        <i class="status-led"></i><span id="status-chip-text">ARMED</span>
+      </span>
     </header>
 
-    <!-- Currently Scanned URL Strip -->
-    <section class="url-card">
-      <div class="url-left">
-        <div class="globe-icon" aria-hidden="true">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="12" cy="12" r="10"></circle>
-            <line x1="2" y1="12" x2="22" y2="12"></line>
-            <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
-          </svg>
-        </div>
-        <div class="url-info">
-          <span id="target-domain" class="domain-name">Detecting domain...</span>
-          <span id="target-url-full" class="full-url-preview">--</span>
-        </div>
+    <!-- Target -->
+    <section class="target" data-r>
+      <div class="target-row">
+        <span class="label">Target</span>
+        <span class="proto" id="protocol">HTTPS</span>
       </div>
-      <div class="pill-group">
-        <div id="brand-pill" class="pill pill-danger hidden">Impersonating</div>
-        <div id="protocol-pill" class="pill pill-safe">HTTPS</div>
+      <h1 class="host" id="host">resolving&hellip;</h1>
+      <p class="path" id="path">&mdash;</p>
+      <p class="impersonation hidden" id="impersonation">
+        Mimics <strong id="brand-name"></strong>
+      </p>
+    </section>
+
+    <!-- Verdict + score (asymmetric split) -->
+    <section class="verdict" data-r>
+      <div class="verdict-main">
+        <span class="label">Verdict</span>
+        <span class="verdict-word" id="verdict-word" data-tone="idle">SCANNING</span>
+        <p class="verdict-summary" id="summary">Evaluating heuristics and local model inference.</p>
+      </div>
+      <div class="verdict-score">
+        <span class="label label-right">Risk</span>
+        <span class="score"><span id="score">--</span><small>/100</small></span>
+        <span class="confidence" id="confidence">conf --</span>
       </div>
     </section>
 
-    <!-- Main Threat Score & Status Dashboard -->
-    <main class="dashboard-body">
-      <!-- Radial Gauge & Status Verdict -->
-      <section class="score-card">
-        <div class="gauge-wrap">
-          <svg class="gauge-svg" width="96" height="96" viewBox="0 0 100 100">
-            <circle class="gauge-track" cx="50" cy="50" r="40" stroke-width="8" fill="none" />
-            <circle id="gauge-fill" class="gauge-progress" cx="50" cy="50" r="40" stroke-width="8" stroke-dasharray="251.2" stroke-dashoffset="251.2" stroke-linecap="round" fill="none" />
-          </svg>
-          <div class="gauge-center">
-            <span id="threat-score" class="score-number">--</span>
-            <span class="score-label">Risk Score</span>
-          </div>
-        </div>
+    <!-- Probability ticks -->
+    <section class="ticks-block" data-r aria-label="Model probability split">
+      <div class="ticks" id="ticks" role="img" aria-label="Phishing probability"></div>
+      <div class="ticks-legend">
+        <span>benign <b id="p-benign">--</b></span>
+        <span>phishing <b id="p-phish">--</b></span>
+      </div>
+    </section>
 
-        <div class="verdict-wrap">
-          <div id="status-badge" class="status-badge badge-safe">
-            <span class="badge-dot">●</span>
-            <span id="status-text">Scanning...</span>
-          </div>
-          <p id="verdict-summary" class="verdict-description">
-            Evaluating multi-signal heuristics and local model inference...
-          </p>
-          <div class="confidence-row">
-            <span id="confidence-label" class="confidence-tag">--% Confidence</span>
-          </div>
-        </div>
-      </section>
-
-      <!-- Model Detail Strip -->
-      <section class="model-detail-card" aria-label="Trained model details">
-        <div class="model-detail-heading">
-          <span class="model-status-dot"></span>
-          <span id="model-name">Random Forest Ensemble</span>
-          <strong id="model-version">Model loading</strong>
-        </div>
-        <div class="probability-bars">
-          <div class="probability-line">
-            <span>Benign</span>
-            <div class="probability-track"><span id="benign-probability-bar"></span></div>
-            <strong id="benign-probability">--</strong>
-          </div>
-          <div class="probability-line phishing-line">
-            <span>Phishing</span>
-            <div class="probability-track"><span id="phishing-probability-bar"></span></div>
-            <strong id="phishing-probability">--</strong>
-          </div>
-        </div>
-      </section>
-
-      <!-- Threat Indicators Breakdown -->
-      <section class="breakdown-card">
-        <div class="breakdown-header">
-          <div class="breakdown-title">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
-              <line x1="12" y1="9" x2="12" y2="13"/>
-              <line x1="12" y1="17" x2="12.01" y2="17"/>
-            </svg>
-            <span>Observed Evidence</span>
-          </div>
-          <span id="flags-badge" class="count-pill pill-zero">0 Detected</span>
-        </div>
-
-        <div id="flags-list" class="flags-list">
-          <div class="clean-box">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
-              <polyline points="22 4 12 14.01 9 11.01"/>
-            </svg>
-            <div class="clean-text">
-              <span class="clean-title">All checks normal</span>
-              <span class="clean-desc">No deceptive brand impersonation, raw IP, or phishing tactics detected.</span>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <!-- Action Buttons -->
-      <div class="action-row">
-        <button id="btn-rescan" class="btn btn-secondary" title="Re-evaluate page heuristics">
-          <svg id="rescan-spin" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-            <polyline points="23 4 23 10 17 10"/>
-            <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
-          </svg>
-          <span>Re-scan Tab</span>
+    <!-- Command zone -->
+    <section class="cmd" data-r>
+      <div class="seg" id="seg" role="radiogroup" aria-label="Domain policy">
+        <span class="seg-thumb" aria-hidden="true"></span>
+        <button class="seg-opt" role="radio" data-mode="guard" aria-checked="true">
+          <span class="seg-key">G</span>Guard
         </button>
-
-        <button id="btn-whitelist" class="btn btn-outline" title="Add domain to personal trusted list">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
-            <polyline points="9 12 11 14 15 10"/>
-          </svg>
-          <span id="whitelist-label">Trust Domain</span>
+        <button class="seg-opt" role="radio" data-mode="trust" aria-checked="false">
+          <span class="seg-key">T</span>Trust
         </button>
       </div>
-    </main>
+      <button class="trigger" id="btn-rescan" type="button" title="Re-run analysis on this tab (R)">
+        <span class="trigger-glyph" id="rescan-glyph" aria-hidden="true">&#8635;</span>
+        <span>Rescan</span>
+      </button>
+    </section>
 
-    <!-- Footer with Direct Command Center Link -->
-    <footer class="app-footer">
-      <div class="popup-tools">
-        <button id="btn-open-console" class="console-button" type="button">
-          <span>Open Security Command Center</span>
-          <span class="arrow-icon">↗</span>
-        </button>
-      </div>
-      <div class="privacy-tag">
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
-          <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
-        </svg>
-        <span>100% On-Device AI • Zero Browsing History Shared</span>
-      </div>
+    <!-- Evidence -->
+    <section class="evidence" data-r>
+      <header class="sec-hd">
+        <h2>Evidence</h2>
+        <span class="sec-count" id="evidence-count">00</span>
+      </header>
+      <ol class="evidence-list" id="evidence-list"></ol>
+    </section>
+
+    <!-- Log -->
+    <section class="log" data-r>
+      <header class="sec-hd">
+        <h2>Recent</h2>
+        <span class="log-stats" id="log-stats">&mdash;</span>
+      </header>
+      <table class="log-table">
+        <tbody id="log-body"></tbody>
+      </table>
+    </section>
+
+    <!-- Footer -->
+    <footer class="ft" data-r>
+      <button class="ft-link" id="btn-console" type="button">
+        Command center <span class="ft-arrow" aria-hidden="true">&#8599;</span>
+      </button>
+      <span class="ft-note">Zero history leaves this device</span>
     </footer>
   </div>
 
