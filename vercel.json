@@ -2,13 +2,21 @@
   "cleanUrls": true,
   "trailingSlash": false,
   "rewrites": [
-    { "source": "/dashboard.css", "destination": "/dashboard/dashboard.css" },
-    { "source": "/dashboard.js", "destination": "/dashboard/dashboard.js" },
-    { "source": "/dashboard", "destination": "/dashboard/index.html" },
-    { "source": "/demo", "destination": "/demo.html" },
+    { "source": "/", "destination": "/index.html" },
+    { "source": "/index", "destination": "/index.html" },
     { "source": "/landing", "destination": "/index.html" },
     { "source": "/auth", "destination": "/auth.html" },
     { "source": "/login", "destination": "/auth.html" },
-    { "source": "/admin", "destination": "/admin.html" }
+    { "source": "/admin", "destination": "/admin.html" },
+    { "source": "/demo", "destination": "/demo.html" },
+    { "source": "/dashboard", "destination": "/dashboard/index.html" },
+    { "source": "/dashboard/", "destination": "/dashboard/index.html" },
+    { "source": "/dashboard.css", "destination": "/dashboard/dashboard.css" },
+    { "source": "/dashboard.js", "destination": "/dashboard/dashboard.js" },
+    { "source": "/dashboard/(.*)", "destination": "/dashboard/$1" },
+    { "source": "/assets/(.*)", "destination": "/assets/$1" },
+    { "source": "/icons/(.*)", "destination": "/icons/$1" },
+    { "source": "/popup/(.*)", "destination": "/popup/$1" },
+    { "source": "/ml/(.*)", "destination": "/ml/$1" }
   ]
 }

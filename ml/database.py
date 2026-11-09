@@ -12,14 +12,21 @@ from __future__ import annotations
 import base64
 import hashlib
 import hmac
+import json
+import logging
 import os
+import re
 import secrets
 import sqlite3
 import struct
 import time
+import urllib.parse
+import urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
+
+logger = logging.getLogger("sentinelai.database")
 
 ROOT_DIR = Path(__file__).resolve().parent.parent
 DATA_DIR = Path(__file__).resolve().parent / "data"
@@ -436,6 +443,52 @@ def create_2fa_challenge(user_id: int, channel: str = "email") -> Tuple[str, str
     return temp_token, code
 
 
+def _send_carrier_sms(phone: str, code: str) -> Dict[str, Any]:
+    """Attempts cellular SMS delivery via Fast2SMS (India) or Twilio (Global)."""
+    fast2sms_key = os.environ.get("FAST2SMS_API_KEY")
+    if fast2sms_key:
+        try:
+            clean_num = re.sub(r"[^\d]", "", phone)
+            if clean_num.startswith("91") and len(clean_num) > 10:
+                clean_num = clean_num[2:]
+            url = f"https://www.fast2sms.com/dev/bulkV2?authorization={fast2sms_key}&route=otp&variables_values={code}&flash=0&numbers={clean_num}"
+            req = urllib.request.Request(url, headers={"User-Agent": "SentinelAI-SMS-Engine"})
+            with urllib.request.urlopen(req, timeout=5) as resp:
+                data = json.loads(resp.read().decode())
+                logger.info(f"Fast2SMS dispatch response: {data}")
+                return {"carrier": "Fast2SMS", "delivered": data.get("return", True), "details": data}
+        except Exception as e:
+            logger.warning(f"Fast2SMS cellular dispatch error: {e}")
+            return {"carrier": "Fast2SMS", "delivered": False, "error": str(e)}
+
+    twilio_sid = os.environ.get("TWILIO_ACCOUNT_SID")
+    twilio_token = os.environ.get("TWILIO_AUTH_TOKEN")
+    twilio_from = os.environ.get("TWILIO_PHONE_NUMBER")
+    if twilio_sid and twilio_token and twilio_from:
+        try:
+            url = f"https://api.twilio.com/2010-04-01/Accounts/{twilio_sid}/Messages.json"
+            body = urllib.parse.urlencode({
+                "To": phone,
+                "From": twilio_from,
+                "Body": f"[SentinelAI] Your 6-digit verification code is: {code}. Valid for 5 minutes."
+            }).encode()
+            req = urllib.request.Request(url, data=body, method="POST")
+            auth_header = base64.b64encode(f"{twilio_sid}:{twilio_token}".encode()).decode()
+            req.add_header("Authorization", f"Basic {auth_header}")
+            with urllib.request.urlopen(req, timeout=5) as resp:
+                data = json.loads(resp.read().decode())
+                return {"carrier": "Twilio", "delivered": True, "sid": data.get("sid")}
+        except Exception as e:
+            logger.warning(f"Twilio cellular dispatch error: {e}")
+            return {"carrier": "Twilio", "delivered": False, "error": str(e)}
+
+    return {
+        "carrier": "Simulated Gateway",
+        "delivered": True,
+        "notice": "Set FAST2SMS_API_KEY or TWILIO_ACCOUNT_SID for real telecom cellular delivery."
+    }
+
+
 def dispatch_otp(
     recipient_email: str,
     code: str,
@@ -443,23 +496,31 @@ def dispatch_otp(
     channel: str = "email",
     user_id: Optional[int] = None
 ) -> Dict[str, Any]:
-    """Simulates real-world authenticated transmission of 6-digit OTP to user's phone or email."""
+    """Authenticates and dispatches 6-digit OTP to user's phone or email (real carrier if configured or simulated)."""
     now_iso = datetime.now(timezone.utc).isoformat()
     target = recipient_phone if (channel == "sms" and recipient_phone) else recipient_email
+    carrier_info: Dict[str, Any] = {}
+    if channel == "sms" and recipient_phone:
+        carrier_info = _send_carrier_sms(recipient_phone, code)
+
+    delivery_status = "delivered" if carrier_info.get("delivered", True) else "gateway_pending"
+
     with get_connection() as conn:
         conn.execute(
             """
             INSERT INTO otp_dispatches (user_id, recipient, channel, code, status, created_at)
             VALUES (?, ?, ?, ?, ?, ?)
             """,
-            (user_id, target, channel, code, "delivered", now_iso),
+            (user_id, target, channel, code, delivery_status, now_iso),
         )
         conn.commit()
     return {
         "channel": channel,
         "recipient": target,
-        "status": "delivered",
+        "code": code,
+        "status": delivery_status,
         "timestamp": now_iso,
+        "carrier": carrier_info.get("carrier", "local"),
         "message": f"6-digit authentication token successfully dispatched to {target}"
     }
 

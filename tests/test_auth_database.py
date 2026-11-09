@@ -214,7 +214,12 @@ class AuthAndDatabaseTests(unittest.TestCase):
         self.assertEqual(matched[0]["status"], "delivered")
 
     def test_08_guest_scan_limit_one_time(self):
-        simulated_ip = f"198.51.100.{secrets.randbelow(200) + 10}"
+        import uuid
+        simulated_ip = f"203.0.113.{uuid.uuid4().hex[:6]}"
+        with db.get_connection() as conn:
+            conn.execute("DELETE FROM guest_scan_limits WHERE ip_address = ?", (simulated_ip,))
+            conn.commit()
+
         # Scan 1: Allowed
         quota1 = db.check_scan_quota(user_id=None, ip_address=simulated_ip)
         self.assertTrue(quota1["allowed"])
