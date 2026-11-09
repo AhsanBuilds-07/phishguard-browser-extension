@@ -43,5 +43,12 @@ else
   exit 1
 fi
 
+# Ensure port 8000 is free before binding
+if command -v fuser >/dev/null 2>&1 && fuser 8000/tcp >/dev/null 2>&1; then
+  echo "⚠️  Port 8000 is already in use by a running instance. Freeing port 8000..."
+  fuser -k 8000/tcp 2>/dev/null || true
+  sleep 1
+fi
+
 echo "🚀 Starting SentinelAI Platform at http://127.0.0.1:8000 ..."
 exec "$UVICORN" ml.platform_api:app --host 127.0.0.1 --port 8000
