@@ -116,6 +116,15 @@ def _extract_user(request: Request) -> dict[str, Any] | None:
     return None
 
 
+def _require_admin(request: Request) -> dict[str, Any]:
+    user = _extract_user(request)
+    if not user:
+        raise HTTPException(status_code=401, detail="Admin authentication required.")
+    if user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Admin role required.")
+    return user
+
+
 def _safe_dataset_path(name: str) -> Path:
     if not DATASET_NAME.fullmatch(name):
         raise HTTPException(status_code=400, detail="Dataset name must be a simple .csv filename.")
@@ -558,6 +567,7 @@ def get_user_tokens(request: Request) -> dict[str, Any]:
 
 @app.get("/api/admin/otp-dispatches")
 def get_admin_otp_dispatches(request: Request, limit: int = 50) -> dict[str, Any]:
+    _require_admin(request)
     dispatches = db.get_otp_dispatches(limit=limit)
     return {"dispatches": dispatches}
 
@@ -594,9 +604,19 @@ def save_search_entry(payload: SearchRecordRequest, request: Request) -> dict[st
 @app.get("/api/user/searches")
 def get_user_searches(request: Request, limit: int = 50) -> dict[str, Any]:
     user = _extract_user(request)
-    user_id = user["id"] if user and user.get("role") != "admin" else None
-    searches = db.get_search_history(user_id=user_id, limit=limit)
-    return {"searches": searches, "total": len(searches), "user": user}
+    if not user:
+        # Guests only ever see the scans recorded from their own address.
+        client_ip = request.client.host if request.client else ""
+        searches = db.get_search_history(guest_ip=client_ip, limit=limit)
+    elif user.get("role") == "admin":
+        searches = db.get_search_history(limit=limit)
+    else:
+        searches = db.get_search_history(user_id=user["id"], limit=limit)
+    public_user = {
+        key: user.get(key)
+        for key in ("id", "email", "name", "role", "account_tier", "scan_tokens", "scans_used")
+    } if user else None
+    return {"searches": searches, "total": len(searches), "user": public_user}
 
 
 # --- Admin Security Fleet & Management Endpoints ---
@@ -607,6 +627,7 @@ class RoleUpdateRequest(BaseModel):
 
 @app.get("/api/admin/metrics")
 def admin_metrics(request: Request) -> dict[str, Any]:
+    _require_admin(request)
     metrics = db.get_admin_metrics()
     _, active_version = _load_active_model()
     metrics["active_model"] = active_version
@@ -616,12 +637,14 @@ def admin_metrics(request: Request) -> dict[str, Any]:
 
 @app.get("/api/admin/users")
 def admin_users(request: Request) -> dict[str, Any]:
+    _require_admin(request)
     users = db.list_all_users()
     return {"users": users, "total": len(users)}
 
 
 @app.delete("/api/admin/users/{user_id}")
 def admin_delete_user(user_id: int, request: Request) -> dict[str, Any]:
+    _require_admin(request)
     user = db.get_user_by_id(user_id)
     if not user:
         raise HTTPException(status_code=404, detail="Operator was not found.")
@@ -633,6 +656,7 @@ def admin_delete_user(user_id: int, request: Request) -> dict[str, Any]:
 
 @app.patch("/api/admin/users/{user_id}/role")
 def admin_update_role(user_id: int, payload: RoleUpdateRequest, request: Request) -> dict[str, Any]:
+    _require_admin(request)
     user = db.get_user_by_id(user_id)
     if not user:
         raise HTTPException(status_code=404, detail="Operator was not found.")
@@ -642,6 +666,7 @@ def admin_update_role(user_id: int, payload: RoleUpdateRequest, request: Request
 
 @app.get("/api/admin/searches")
 def admin_searches(request: Request, limit: int = 100, verdict: str | None = None) -> dict[str, Any]:
+    _require_admin(request)
     searches = db.get_search_history(user_id=None, limit=limit)
     if verdict and verdict != "ALL":
         searches = [s for s in searches if verdict.lower() in s["verdict"].lower()]
@@ -650,6 +675,7 @@ def admin_searches(request: Request, limit: int = 100, verdict: str | None = Non
 
 @app.delete("/api/admin/searches/{search_id}")
 def admin_delete_search(search_id: int, request: Request) -> dict[str, Any]:
+    _require_admin(request)
     db.delete_search_entry(search_id)
     return {"status": "deleted", "search_id": search_id}
 

@@ -250,5 +250,99 @@ class AuthAndDatabaseTests(unittest.TestCase):
         self.assertIn("5 scan tokens", q6["message"])
 
 
+    def test_admin_endpoints_reject_anonymous_and_non_admin_sessions(self):
+        admin_routes = [
+            ("get", "/api/admin/users"),
+            ("get", "/api/admin/searches"),
+            ("get", "/api/admin/metrics"),
+            ("get", "/api/admin/otp-dispatches"),
+            ("delete", "/api/admin/users/999999"),
+            ("delete", "/api/admin/searches/999999"),
+        ]
+        for method, route in admin_routes:
+            self.assertEqual(getattr(self.client, method)(route).status_code, 401, route)
+        role_res = self.client.patch("/api/admin/users/1/role", json={"role": "admin"})
+        self.assertEqual(role_res.status_code, 401)
+
+        # A regular operator session is authenticated but not authorised.
+        import uuid
+        reg = self.client.post(
+            "/api/auth/register",
+            json={
+                "name": "Regular Operator",
+                "email": f"test_reg_{uuid.uuid4().hex[:8]}@sentinelai.security",
+                "password": "StrongPassword#2026!",
+                "two_factor_enabled": True,
+            },
+        ).json()
+        session = self.client.post(
+            "/api/auth/2fa/verify",
+            json={"temp_token": reg["temp_token"], "code": reg["dev_code_hint"]},
+        ).json()
+        headers = {"Authorization": f"Bearer {session['token']}"}
+        for method, route in admin_routes:
+            self.assertEqual(getattr(self.client, method)(route, headers=headers).status_code, 403, route)
+
+    def test_static_2fa_bypass_code_only_works_for_root_admin(self):
+        import uuid
+        reg = self.client.post(
+            "/api/auth/register",
+            json={
+                "name": "Bypass Probe",
+                "email": f"test_reg_{uuid.uuid4().hex[:8]}@sentinelai.security",
+                "password": "StrongPassword#2026!",
+                "two_factor_enabled": True,
+            },
+        ).json()
+        if reg["dev_code_hint"] != "999888":
+            bypass = self.client.post(
+                "/api/auth/2fa/verify",
+                json={"temp_token": reg["temp_token"], "code": "999888"},
+            )
+            self.assertNotEqual(bypass.status_code, 200)
+
+        login = self.client.post(
+            "/api/auth/login",
+            json={"email": "admin@sentinelai.security", "password": "SentinelAdmin#2026!"},
+        ).json()
+        if login.get("require_2fa"):
+            login = self.client.post(
+                "/api/auth/2fa/verify",
+                json={"temp_token": login["temp_token"], "code": "999888"},
+            ).json()
+        headers = {"Authorization": f"Bearer {login['token']}"}
+        self.assertEqual(self.client.get("/api/admin/users", headers=headers).status_code, 200)
+
+    def test_search_history_is_scoped_and_never_leaks_credentials(self):
+        import uuid
+        self.client.post(
+            "/api/user/searches",
+            json={"query_url": "https://scoped-probe.example/", "risk_score": 0.1, "verdict": "SAFE"},
+        )
+        anon = self.client.get("/api/user/searches?limit=200").json()
+        self.assertTrue(anon["searches"])
+        self.assertTrue(all(row["user_id"] is None for row in anon["searches"]))
+
+        reg = self.client.post(
+            "/api/auth/register",
+            json={
+                "name": "Scoped Operator",
+                "email": f"test_reg_{uuid.uuid4().hex[:8]}@sentinelai.security",
+                "password": "StrongPassword#2026!",
+                "two_factor_enabled": True,
+            },
+        ).json()
+        session = self.client.post(
+            "/api/auth/2fa/verify",
+            json={"temp_token": reg["temp_token"], "code": reg["dev_code_hint"]},
+        ).json()
+        mine = self.client.get(
+            "/api/user/searches",
+            headers={"Authorization": f"Bearer {session['token']}"},
+        ).json()
+        self.assertEqual(mine["searches"], [])
+        for secret in ("password_hash", "password_salt", "two_factor_secret"):
+            self.assertNotIn(secret, mine["user"])
+
 if __name__ == "__main__":
     unittest.main()

@@ -738,6 +738,7 @@
       </p>
 
       <form onsubmit="handleAdminLogin(event)" style="display:flex; flex-direction:column; gap:12px;">
+        <p id="gate-error" role="alert" style="display:none; margin:0; padding:10px 12px; border-left:2px solid var(--red, #f0464e); background:rgba(240,70,78,0.08); color:var(--red, #f0464e); font-size:12px;"></p>
         <input type="email" id="gate-email" class="search-input" style="width:100%; padding:10px;" value="admin@sentinelai.security" required>
         <input type="password" id="gate-password" class="search-input" style="width:100%; padding:10px;" value="SentinelAdmin#2026!" required>
         <input type="text" id="gate-2fa" class="search-input" style="width:100%; padding:10px; font-family:var(--font-mono);" placeholder="2FA Code (999888)" value="999888" required>
@@ -785,7 +786,7 @@
       try {
         const token = localStorage.getItem('sentinel_token');
         const headers = token ? { 'Authorization': 'Bearer ' + token } : {};
-        const res = await fetch('/api/admin/otp-dispatches?limit=50', { headers });
+        const res = await adminFetch('/api/admin/otp-dispatches?limit=50', { headers });
         if (res.ok) {
           const data = await res.json();
           renderOtpTable(data.dispatches || []);
@@ -820,7 +821,7 @@
         const headers = token ? { 'Authorization': 'Bearer ' + token } : {};
 
         // 1. Fetch Metrics
-        const mRes = await fetch('/api/admin/metrics', { headers });
+        const mRes = await adminFetch('/api/admin/metrics', { headers });
         if (mRes.ok) {
           const m = await mRes.json();
           document.getElementById('stat-operators').textContent = m.total_users;
@@ -833,7 +834,7 @@
         }
 
         // 2. Fetch Users
-        const uRes = await fetch('/api/admin/users', { headers });
+        const uRes = await adminFetch('/api/admin/users', { headers });
         if (uRes.ok) {
           const uData = await uRes.json();
           allUsers = uData.users || [];
@@ -899,7 +900,7 @@
     async function toggleRole(userId, currentRole) {
       const newRole = currentRole === 'admin' ? 'user' : 'admin';
       const token = localStorage.getItem('sentinel_token');
-      await fetch(`/api/admin/users/${userId}/role`, {
+      await adminFetch(`/api/admin/users/${userId}/role`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -913,7 +914,7 @@
     async function deleteUser(userId) {
       if (!confirm('Are you sure you want to remove this operator?')) return;
       const token = localStorage.getItem('sentinel_token');
-      await fetch(`/api/admin/users/${userId}`, {
+      await adminFetch(`/api/admin/users/${userId}`, {
         method: 'DELETE',
         headers: token ? { 'Authorization': 'Bearer ' + token } : {}
       });
@@ -923,7 +924,7 @@
     async function fetchSearches() {
       const token = localStorage.getItem('sentinel_token');
       const verdict = document.getElementById('verdict-filter').value;
-      const res = await fetch(`/api/admin/searches?limit=100&verdict=${verdict}`, {
+      const res = await adminFetch(`/api/admin/searches?limit=100&verdict=${verdict}`, {
         headers: token ? { 'Authorization': 'Bearer ' + token } : {}
       });
       if (res.ok) {
@@ -977,7 +978,7 @@
 
     async function deleteSearch(searchId) {
       const token = localStorage.getItem('sentinel_token');
-      await fetch(`/api/admin/searches/${searchId}`, {
+      await adminFetch(`/api/admin/searches/${searchId}`, {
         method: 'DELETE',
         headers: token ? { 'Authorization': 'Bearer ' + token } : {}
       });
@@ -1001,6 +1002,23 @@
       a.click();
     }
 
+    // Every admin call goes through here so a missing, expired or
+    // non-admin session drops the operator back to the gate.
+    async function adminFetch(url, options = {}) {
+      const res = await fetch(url, options);
+      if (res.status === 401 || res.status === 403) {
+        showGate(res.status === 403 ? 'This account does not have the admin role.' : '');
+      }
+      return res;
+    }
+
+    function showGate(message) {
+      document.getElementById('gate-overlay').style.display = 'grid';
+      const err = document.getElementById('gate-error');
+      err.textContent = message || '';
+      err.style.display = message ? 'block' : 'none';
+    }
+
     async function handleAdminLogin(e) {
       e.preventDefault();
       const email = document.getElementById('gate-email').value;
@@ -1013,29 +1031,28 @@
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ email, password })
         });
-        const loginData = await loginRes.json();
+        let session = await loginRes.json();
+        if (!loginRes.ok) throw new Error(session.detail || 'Invalid email or password.');
 
-        if (loginData.require_2fa) {
+        if (session.require_2fa) {
           const verifyRes = await fetch('/api/auth/2fa/verify', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ temp_token: loginData.temp_token, code: code || '999888' })
+            body: JSON.stringify({ temp_token: session.temp_token, code })
           });
-          const vData = await verifyRes.json();
-          localStorage.setItem('sentinel_token', vData.token);
-          localStorage.setItem('sentinel_user', JSON.stringify(vData.user));
-          document.getElementById('gate-overlay').style.display = 'none';
-          fetchAdminData();
-        } else {
-          localStorage.setItem('sentinel_token', loginData.token);
-          localStorage.setItem('sentinel_user', JSON.stringify(loginData.user));
-          document.getElementById('gate-overlay').style.display = 'none';
-          fetchAdminData();
+          session = await verifyRes.json();
+          if (!verifyRes.ok) throw new Error(session.detail || 'Invalid 2FA code.');
         }
-      } catch (err) {
-        // Mock fallback
+
+        if (!session.token || !session.user || session.user.role !== 'admin') {
+          throw new Error('This account does not have the admin role.');
+        }
+        localStorage.setItem('sentinel_token', session.token);
+        localStorage.setItem('sentinel_user', JSON.stringify(session.user));
         document.getElementById('gate-overlay').style.display = 'none';
         fetchAdminData();
+      } catch (err) {
+        showGate(err.message || 'Authentication failed.');
       }
     }
 

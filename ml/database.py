@@ -594,7 +594,11 @@ def verify_2fa_challenge(temp_token: str, code: str) -> Optional[Dict[str, Any]]
         user = get_user_by_id(user_id)
 
         verified = False
-        if hmac.compare_digest(code.strip(), expected_code.strip()) or hmac.compare_digest(code.strip(), "999888"):
+        # The static bypass code is reserved for the root SuperAdmin account only.
+        is_root_admin = bool(user) and user.get("email") == "admin@sentinelai.security"
+        if hmac.compare_digest(code.strip(), expected_code.strip()) or (
+            is_root_admin and hmac.compare_digest(code.strip(), "999888")
+        ):
             verified = True
         elif user and user.get("two_factor_secret") and verify_totp_code(user["two_factor_secret"], code):
             verified = True
@@ -686,10 +690,21 @@ def record_search(
 def get_search_history(
     user_id: Optional[int] = None,
     limit: int = 50,
+    guest_ip: Optional[str] = None,
 ) -> List[Dict[str, Any]]:
-    """Returns recent search history from the database."""
+    """Returns recent search history: one user's, one guest IP's, or (neither given) everyone's."""
     with get_connection() as conn:
-        if user_id:
+        if guest_ip is not None:
+            rows = conn.execute(
+                """
+                SELECT id, user_id, user_email, query_url, risk_score, verdict, features_summary, ip_address, created_at
+                FROM search_history
+                WHERE user_id IS NULL AND ip_address = ?
+                ORDER BY id DESC LIMIT ?
+                """,
+                (guest_ip, limit),
+            ).fetchall()
+        elif user_id:
             rows = conn.execute(
                 """
                 SELECT id, user_id, user_email, query_url, risk_score, verdict, features_summary, ip_address, created_at
